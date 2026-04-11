@@ -1,0 +1,329 @@
+-- [[ INFINITE STAMINA - GIỮ NGUYÊN (RuleSC) ]]
+local runserv = game:GetService("RunService")
+runserv.Heartbeat:Connect(function()
+    pcall(function()
+        local player = game:GetService("Players").LocalPlayer
+        local val = player.ServerVariables.Sprint.SubPerM
+        local sta = player.ServerVariables.Sprint.Stamina
+        sta.Value = 100
+        val.Value = 0
+    end)
+end)
+
+local TARGET_PLACEID = 15784744207
+local TARGET_GAMENAME = "Valley Prison"
+local StarterGui = game:GetService("StarterGui")
+
+if game.PlaceId ~= TARGET_PLACEID then
+    StarterGui:SetCore("SendNotification", {
+        Title = "Wrong Game",
+        Text = "This script only works in "..TARGET_GAMENAME.."!",
+        Duration = 5
+    })
+    return
+end
+
+StarterGui:SetCore("SendNotification", {
+    Title = "Aimbot Loaded",
+    Text = "Aimbot VPRP V2: by LazyMansScript",
+    Duration = 5
+})
+
+-- [[ SETTINGS ]]
+local fov = 90
+local aimingEnabled = true
+local filterDangerous = false
+local filterInnocent = false 
+
+-- CẬP NHẬT DANH SÁCH DANGEROUS TOOLS (RuleSC)
+local dangerousItems = {
+    "Rope", "Shiv", "Baton", "G17", "Employee Keycard", 
+    "Corrections Keycard", "Directors Keycard", "Master Keycard", 
+    "G22", "G40", "M1014", "G36C", "HK416", "MP7",
+    "G18", "P90", "M4A1", "M82A1", "LEO MCX Spear", "The Harrow", 
+    "Five Seven", "FNX45", "G18C", "SW500", "M1A1", "M3 Grease Gun", 
+    "M1928", "MP5", "Saiga 12K", "Model 590", "Terminator", "Patriot"
+}
+
+-- [[ SERVICES ]]
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Cam = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- [[ FOV CIRCLE ]]
+local FOVring = Drawing.new("Circle")
+FOVring.Visible = true
+FOVring.Thickness = 2
+FOVring.Color = Color3.fromRGB(0, 0, 0)
+FOVring.Filled = false
+FOVring.Radius = fov
+FOVring.Position = Cam.ViewportSize / 2
+
+local function updateDrawings()
+    FOVring.Position = Cam.ViewportSize / 2
+    FOVring.Radius = fov
+end
+
+-- [[ AIMBOT LOGIC ]]
+local function lookAt(targetPos)
+    Cam.CFrame = CFrame.new(Cam.CFrame.Position, targetPos)
+end
+
+local criminalColors = {
+    ["Slime green"] = true, ["Neon orange"] = true, ["Dusty Rose"] = true,
+    ["Plum"] = true, ["Dark stone grey"] = true
+}
+local deepBlueGroup = {
+    ["Deep blue"] = true, ["Black"] = true, ["Navy blue"] = true, ["Fossil"] = true
+}
+
+local function isEnemy(player)
+    if not player.TeamColor or not LocalPlayer.TeamColor then return true end
+    local myColor = LocalPlayer.TeamColor.Name
+    local theirColor = player.TeamColor.Name
+    if deepBlueGroup[myColor] then return not deepBlueGroup[theirColor] end
+    if criminalColors[myColor] then return not criminalColors[theirColor] end
+    return player.TeamColor ~= LocalPlayer.TeamColor
+end
+
+local function isDangerous(player)
+    local char = player.Character
+    if not char then return false end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool and table.find(dangerousItems, tool.Name) then return true end
+    local bp = player:FindFirstChild("Backpack")
+    if bp then
+        for _, item in ipairs(bp:GetChildren()) do
+            if table.find(dangerousItems, item.Name) then return true end
+        end
+    end
+    return false
+end
+
+local function isNotInnocent(player)
+    local svVars = player:FindFirstChild("ServerVariables")
+    if svVars then
+        local innocentVal = svVars:FindFirstChild("Innocent")
+        if innocentVal and innocentVal:IsA("ValueBase") then
+            return innocentVal.Value == false
+        end
+    end
+    return true
+end
+
+local function getClosestEnemyInFOV()
+    local closest, closestDist = nil, math.huge
+    local screenCenter = Cam.ViewportSize / 2
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if not isEnemy(player) then continue end
+            if filterDangerous and not isDangerous(player) then continue end
+            if filterInnocent and not isNotInnocent(player) then continue end
+
+            local char = player.Character
+            if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then continue end
+
+            local head = char:FindFirstChild("Head")
+            if head then
+                local pos, onScreen = Cam:WorldToViewportPoint(head.Position)
+                local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+
+                if onScreen and dist < fov and dist < closestDist then
+                    local params = RaycastParams.new()
+                    params.FilterType = Enum.RaycastFilterType.Blacklist
+                    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+                    local res = workspace:Raycast(Cam.CFrame.Position, head.Position - Cam.CFrame.Position, params)
+                    
+                    if not res or res.Instance:IsDescendantOf(char) then
+                        closestDist = dist
+                        closest = player
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- [[ GUI - GIỮ NGUYÊN (RuleSC) ]]
+local gui = Instance.new("ScreenGui")
+gui.Name = "VPRP_AIMBOT_GUI"
+gui.Parent = game.CoreGui
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 280, 0, 410) 
+frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.Active = true
+frame.Draggable = true
+
+local topBar = Instance.new("Frame", frame)
+topBar.Size = UDim2.new(1, 0, 0, 30)
+topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+local title = Instance.new("TextLabel", topBar)
+title.Size = UDim2.new(1, -30, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "VPRP AIMBOT + STAMINA"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local minimize = Instance.new("TextButton", topBar)
+minimize.Size = UDim2.new(0, 30, 1, 0)
+minimize.Position = UDim2.new(1, -30, 0, 0)
+minimize.Text = "-"
+minimize.Font = Enum.Font.GothamBold
+minimize.TextSize = 18
+minimize.TextColor3 = Color3.fromRGB(255,255,255)
+minimize.BackgroundTransparency = 1
+
+local toggle = Instance.new("TextButton", frame)
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 45)
+toggle.Text = "AIMBOT: ON"
+toggle.Font = Enum.Font.GothamBold
+toggle.TextSize = 16
+toggle.TextColor3 = Color3.fromRGB(255,255,255)
+toggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
+
+local dangerousBtn = Instance.new("TextButton", frame)
+dangerousBtn.Size = UDim2.new(1, -20, 0, 40)
+dangerousBtn.Position = UDim2.new(0, 10, 0, 90)
+dangerousBtn.Text = "FILTER DANGEROUS: OFF"
+dangerousBtn.Font = Enum.Font.GothamBold
+dangerousBtn.TextSize = 14
+dangerousBtn.TextColor3 = Color3.fromRGB(255,255,255)
+dangerousBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local innocentBtn = Instance.new("TextButton", frame)
+innocentBtn.Size = UDim2.new(1, -20, 0, 40)
+innocentBtn.Position = UDim2.new(0, 10, 0, 135)
+innocentBtn.Text = "FILTER INNOCENT: OFF"
+innocentBtn.Font = Enum.Font.GothamBold
+innocentBtn.TextSize = 14
+innocentBtn.TextColor3 = Color3.fromRGB(255,255,255)
+innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local toolFastBtn = Instance.new("TextButton", frame)
+toolFastBtn.Size = UDim2.new(1, -20, 0, 40)
+toolFastBtn.Position = UDim2.new(0, 10, 0, 180)
+toolFastBtn.Text = "EXECUTE: GET TOOL FAST"
+toolFastBtn.Font = Enum.Font.GothamBold
+toolFastBtn.TextSize = 14
+toolFastBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toolFastBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+
+toolFastBtn.MouseButton1Click:Connect(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Get%20Tool%20Fast%20VPRP"))()
+end)
+
+local fovLabel = Instance.new("TextLabel", frame)
+fovLabel.Size = UDim2.new(1, -20, 0, 20)
+fovLabel.Position = UDim2.new(0, 10, 0, 230)
+fovLabel.BackgroundTransparency = 1
+fovLabel.Text = "FOV: 90"
+fovLabel.Font = Enum.Font.Gotham
+fovLabel.TextSize = 14
+fovLabel.TextColor3 = Color3.fromRGB(255,255,255)
+fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local fovSlider = Instance.new("Frame", frame)
+fovSlider.Size = UDim2.new(1, -20, 0, 10)
+fovSlider.Position = UDim2.new(0, 10, 0, 255)
+fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
+
+local fovFill = Instance.new("Frame", fovSlider)
+fovFill.Size = UDim2.new(fov/180, 0, 1, 0)
+fovFill.BackgroundColor3 = Color3.fromRGB(0,160,0)
+
+local dragging = false
+fovSlider.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+end)
+fovSlider.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local pos = math.clamp(input.Position.X - fovSlider.AbsolutePosition.X, 0, fovSlider.AbsoluteSize.X)
+        fov = 30 + (pos / fovSlider.AbsoluteSize.X) * 150
+        fovLabel.Text = "FOV: "..math.floor(fov)
+        fovFill.Size = UDim2.new(pos / fovSlider.AbsoluteSize.X, 0, 1, 0)
+    end
+end)
+
+local fpLabel = Instance.new("TextLabel", frame)
+fpLabel.Size = UDim2.new(1, -20, 0, 20)
+fpLabel.Position = UDim2.new(0, 10, 0, 280)
+fpLabel.BackgroundTransparency = 1
+fpLabel.Text = "First Person: OFF"
+fpLabel.Font = Enum.Font.Gotham
+fpLabel.TextSize = 14
+fpLabel.TextColor3 = Color3.fromRGB(255,255,255)
+fpLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local minimized = false
+minimize.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 410)
+    toggle.Visible = not minimized
+    dangerousBtn.Visible = not minimized
+    innocentBtn.Visible = not minimized
+    toolFastBtn.Visible = not minimized
+    fovLabel.Visible = not minimized
+    fovSlider.Visible = not minimized
+    fpLabel.Visible = not minimized
+    minimize.Text = minimized and "+" or "-"
+end)
+
+-- Main logic loops
+toggle.MouseButton1Click:Connect(function()
+    aimingEnabled = not aimingEnabled
+    toggle.Text = aimingEnabled and "AIMBOT: ON" or "AIMBOT: OFF"
+    toggle.BackgroundColor3 = aimingEnabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
+end)
+
+dangerousBtn.MouseButton1Click:Connect(function()
+    filterDangerous = not filterDangerous
+    dangerousBtn.Text = filterDangerous and "FILTER DANGEROUS: ON" or "FILTER DANGEROUS: OFF"
+    dangerousBtn.BackgroundColor3 = filterDangerous and Color3.fromRGB(200, 120, 0) or Color3.fromRGB(60, 60, 60)
+end)
+
+innocentBtn.MouseButton1Click:Connect(function()
+    filterInnocent = not filterInnocent
+    innocentBtn.Text = filterInnocent and "FILTER INNOCENT: ON" or "FILTER INNOCENT: OFF"
+    innocentBtn.BackgroundColor3 = filterInnocent and Color3.fromRGB(160, 0, 160) or Color3.fromRGB(60, 60, 60)
+end)
+
+RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+    updateDrawings()
+    if not aimingEnabled or not LocalPlayer.Character then return end
+    
+    local head = LocalPlayer.Character:FindFirstChild("Head")
+    if not head then return end
+    
+    local isFP = (Cam.CFrame.Position - head.Position).Magnitude <= 1
+    fpLabel.Text = isFP and "First Person: ON" or "First Person: OFF"
+    if not isFP then return end
+
+    local target = getClosestEnemyInFOV()
+    if target and target.Character then
+        local tHead = target.Character:FindFirstChild("Head")
+        if tHead then lookAt(tHead.Position) end
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Delete then
+        RunService:UnbindFromRenderStep("AimbotUpdate")
+        FOVring:Remove()
+        gui:Destroy()
+    end
+end)

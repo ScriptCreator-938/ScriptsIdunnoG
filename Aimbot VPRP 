@@ -25,7 +25,7 @@ end
 
 StarterGui:SetCore("SendNotification", {
     Title = "Aimbot Loaded",
-    Text = "Aimbot VPRP V2: by LazyMansScript",
+    Text = "Aimbot VPRP V2: by LazyMansScript + ESP Tools",
     Duration = 5
 })
 
@@ -34,6 +34,7 @@ local fov = 90
 local aimingEnabled = true
 local filterDangerous = false
 local filterInnocent = false 
+local espToolsEnabled = false -- Biến trạng thái ESP Tools
 
 -- CẬP NHẬT DANH SÁCH DANGEROUS TOOLS (RuleSC)
 local dangerousItems = {
@@ -65,6 +66,58 @@ local function updateDrawings()
     FOVring.Position = Cam.ViewportSize / 2
     FOVring.Radius = fov
 end
+
+-- [[ ESP DROPPED TOOLS LOGIC ]]
+local toolEspFolder = Instance.new("Folder", game.CoreGui)
+toolEspFolder.Name = "ToolESP_Storage"
+
+local function createToolEsp(toolModel)
+    if not toolModel:IsA("Model") then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ToolESP"
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 100, 0, 20)
+    billboard.Adornee = toolModel:FindFirstChildWhichIsA("BasePart") or toolModel.PrimaryPart
+    billboard.MaxDistance = 500
+    billboard.Parent = toolEspFolder
+
+    local label = Instance.new("TextLabel", billboard)
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Text = toolModel.Name
+    label.TextColor3 = Color3.fromRGB(255, 255, 0) -- Màu vàng cho dễ nhìn
+    label.TextStrokeTransparency = 0
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 12
+
+    -- Tự xóa ESP khi tool biến mất
+    toolModel.AncestryChanged:Connect(function()
+        if not toolModel:IsDescendantOf(workspace) then
+            billboard:Destroy()
+        end
+    end)
+end
+
+local function refreshToolEsp()
+    toolEspFolder:ClearAllChildren()
+    if espToolsEnabled then
+        local droppedTools = workspace:FindFirstChild("DroppedTools")
+        if droppedTools then
+            for _, tool in ipairs(droppedTools:GetChildren()) do
+                createToolEsp(tool)
+            end
+        end
+    end
+end
+
+-- Theo dõi tool mới rơi ra khi đang bật ESP
+workspace:WaitForChild("DroppedTools").ChildAdded:Connect(function(child)
+    if espToolsEnabled then
+        task.wait(0.1)
+        createToolEsp(child)
+    end
+end)
 
 -- [[ AIMBOT LOGIC ]]
 local function lookAt(targetPos)
@@ -136,7 +189,7 @@ local function getClosestEnemyInFOV()
                     params.FilterType = Enum.RaycastFilterType.Blacklist
                     params.FilterDescendantsInstances = {LocalPlayer.Character, char}
                     local res = workspace:Raycast(Cam.CFrame.Position, head.Position - Cam.CFrame.Position, params)
-                    
+
                     if not res or res.Instance:IsDescendantOf(char) then
                         closestDist = dist
                         closest = player
@@ -148,14 +201,14 @@ local function getClosestEnemyInFOV()
     return closest
 end
 
--- [[ GUI - GIỮ NGUYÊN (RuleSC) ]]
+-- [[ GUI ]]
 local gui = Instance.new("ScreenGui")
 gui.Name = "VPRP_AIMBOT_GUI"
 gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 280, 0, 410) 
+frame.Size = UDim2.new(0, 280, 0, 460) -- Tăng chiều cao thêm một chút
 frame.Position = UDim2.new(0.05, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Active = true
@@ -169,7 +222,7 @@ local title = Instance.new("TextLabel", topBar)
 title.Size = UDim2.new(1, -30, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "VPRP AIMBOT + STAMINA"
+title.Text = "VPRP AIMBOT + TOOLS ESP"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 14
 title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -211,9 +264,19 @@ innocentBtn.TextSize = 14
 innocentBtn.TextColor3 = Color3.fromRGB(255,255,255)
 innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
+-- NÚT ESP DROPPED TOOLS MỚI
+local espBtn = Instance.new("TextButton", frame)
+espBtn.Size = UDim2.new(1, -20, 0, 40)
+espBtn.Position = UDim2.new(0, 10, 0, 180)
+espBtn.Text = "ESP DROPPED TOOLS: OFF"
+espBtn.Font = Enum.Font.GothamBold
+espBtn.TextSize = 14
+espBtn.TextColor3 = Color3.fromRGB(255,255,255)
+espBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
 local toolFastBtn = Instance.new("TextButton", frame)
 toolFastBtn.Size = UDim2.new(1, -20, 0, 40)
-toolFastBtn.Position = UDim2.new(0, 10, 0, 180)
+toolFastBtn.Position = UDim2.new(0, 10, 0, 225)
 toolFastBtn.Text = "EXECUTE: GET TOOL FAST"
 toolFastBtn.Font = Enum.Font.GothamBold
 toolFastBtn.TextSize = 14
@@ -226,7 +289,7 @@ end)
 
 local fovLabel = Instance.new("TextLabel", frame)
 fovLabel.Size = UDim2.new(1, -20, 0, 20)
-fovLabel.Position = UDim2.new(0, 10, 0, 230)
+fovLabel.Position = UDim2.new(0, 10, 0, 275)
 fovLabel.BackgroundTransparency = 1
 fovLabel.Text = "FOV: 90"
 fovLabel.Font = Enum.Font.Gotham
@@ -236,7 +299,7 @@ fovLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local fovSlider = Instance.new("Frame", frame)
 fovSlider.Size = UDim2.new(1, -20, 0, 10)
-fovSlider.Position = UDim2.new(0, 10, 0, 255)
+fovSlider.Position = UDim2.new(0, 10, 0, 300)
 fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
 
 local fovFill = Instance.new("Frame", fovSlider)
@@ -261,7 +324,7 @@ end)
 
 local fpLabel = Instance.new("TextLabel", frame)
 fpLabel.Size = UDim2.new(1, -20, 0, 20)
-fpLabel.Position = UDim2.new(0, 10, 0, 280)
+fpLabel.Position = UDim2.new(0, 10, 0, 325)
 fpLabel.BackgroundTransparency = 1
 fpLabel.Text = "First Person: OFF"
 fpLabel.Font = Enum.Font.Gotham
@@ -272,18 +335,14 @@ fpLabel.TextXAlignment = Enum.TextXAlignment.Left
 local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
-    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 410)
-    toggle.Visible = not minimized
-    dangerousBtn.Visible = not minimized
-    innocentBtn.Visible = not minimized
-    toolFastBtn.Visible = not minimized
-    fovLabel.Visible = not minimized
-    fovSlider.Visible = not minimized
-    fpLabel.Visible = not minimized
+    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 460)
+    for _, child in ipairs(frame:GetChildren()) do
+        if child ~= topBar then child.Visible = not minimized end
+    end
     minimize.Text = minimized and "+" or "-"
 end)
 
--- Main logic loops
+-- Event Listeners
 toggle.MouseButton1Click:Connect(function()
     aimingEnabled = not aimingEnabled
     toggle.Text = aimingEnabled and "AIMBOT: ON" or "AIMBOT: OFF"
@@ -302,13 +361,20 @@ innocentBtn.MouseButton1Click:Connect(function()
     innocentBtn.BackgroundColor3 = filterInnocent and Color3.fromRGB(160, 0, 160) or Color3.fromRGB(60, 60, 60)
 end)
 
+espBtn.MouseButton1Click:Connect(function()
+    espToolsEnabled = not espToolsEnabled
+    espBtn.Text = espToolsEnabled and "ESP DROPPED TOOLS: ON" or "ESP DROPPED TOOLS: OFF"
+    espBtn.BackgroundColor3 = espToolsEnabled and Color3.fromRGB(0, 160, 160) or Color3.fromRGB(60, 60, 60)
+    refreshToolEsp()
+end)
+
 RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
     updateDrawings()
     if not aimingEnabled or not LocalPlayer.Character then return end
-    
+
     local head = LocalPlayer.Character:FindFirstChild("Head")
     if not head then return end
-    
+
     local isFP = (Cam.CFrame.Position - head.Position).Magnitude <= 1
     fpLabel.Text = isFP and "First Person: ON" or "First Person: OFF"
     if not isFP then return end
@@ -325,5 +391,6 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         RunService:UnbindFromRenderStep("AimbotUpdate")
         FOVring:Remove()
         gui:Destroy()
+        toolEspFolder:Destroy()
     end
 end)

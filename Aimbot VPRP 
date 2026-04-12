@@ -25,7 +25,7 @@ end
 
 StarterGui:SetCore("SendNotification", {
     Title = "Aimbot Loaded",
-    Text = "Aimbot VPRP V2: by LazyMansScript + ESP Tools",
+    Text = "Aimbot VPRP V2: by LazyMansScript + ESP Tools + Prediction",
     Duration = 5
 })
 
@@ -34,7 +34,9 @@ local fov = 90
 local aimingEnabled = true
 local filterDangerous = false
 local filterInnocent = false 
-local espToolsEnabled = false -- Biến trạng thái ESP Tools
+local espToolsEnabled = false 
+local predictionEnabled = false -- Biến trạng thái Prediction
+local predStrength = 0 -- Sức mạnh Prediction
 
 -- CẬP NHẬT DANH SÁCH DANGEROUS TOOLS (RuleSC)
 local dangerousItems = {
@@ -73,7 +75,7 @@ toolEspFolder.Name = "ToolESP_Storage"
 
 local function createToolEsp(toolModel)
     if not toolModel:IsA("Model") then return end
-    
+
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ToolESP"
     billboard.AlwaysOnTop = true
@@ -86,12 +88,11 @@ local function createToolEsp(toolModel)
     label.BackgroundTransparency = 1
     label.Size = UDim2.new(1, 0, 1, 0)
     label.Text = toolModel.Name
-    label.TextColor3 = Color3.fromRGB(255, 255, 0) -- Màu vàng cho dễ nhìn
+    label.TextColor3 = Color3.fromRGB(255, 255, 0) 
     label.TextStrokeTransparency = 0
     label.Font = Enum.Font.GothamBold
     label.TextSize = 12
 
-    -- Tự xóa ESP khi tool biến mất
     toolModel.AncestryChanged:Connect(function()
         if not toolModel:IsDescendantOf(workspace) then
             billboard:Destroy()
@@ -111,7 +112,6 @@ local function refreshToolEsp()
     end
 end
 
--- Theo dõi tool mới rơi ra khi đang bật ESP
 workspace:WaitForChild("DroppedTools").ChildAdded:Connect(function(child)
     if espToolsEnabled then
         task.wait(0.1)
@@ -208,8 +208,8 @@ gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 280, 0, 460) -- Tăng chiều cao thêm một chút
-frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+frame.Size = UDim2.new(0, 280, 0, 560) -- Tăng chiều cao để chứa Prediction
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Active = true
 frame.Draggable = true
@@ -264,7 +264,6 @@ innocentBtn.TextSize = 14
 innocentBtn.TextColor3 = Color3.fromRGB(255,255,255)
 innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
--- NÚT ESP DROPPED TOOLS MỚI
 local espBtn = Instance.new("TextButton", frame)
 espBtn.Size = UDim2.new(1, -20, 0, 40)
 espBtn.Position = UDim2.new(0, 10, 0, 180)
@@ -287,9 +286,42 @@ toolFastBtn.MouseButton1Click:Connect(function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Get%20Tool%20Fast%20VPRP"))()
 end)
 
+-- [[ PREDICTION UI ]]
+local predBtn = Instance.new("TextButton", frame)
+predBtn.Size = UDim2.new(0.5, -15, 0, 30)
+predBtn.Position = UDim2.new(0, 10, 0, 275)
+predBtn.Text = "PREDICTION: OFF"
+predBtn.Font = Enum.Font.GothamBold
+predBtn.TextSize = 12
+predBtn.TextColor3 = Color3.fromRGB(255,255,255)
+predBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local predInput = Instance.new("TextBox", frame)
+predInput.Size = UDim2.new(0.5, -15, 0, 30)
+predInput.Position = UDim2.new(0.5, 5, 0, 275)
+predInput.Text = "0"
+predInput.PlaceholderText = "Strength (0-100)"
+predInput.Font = Enum.Font.GothamBold
+predInput.TextSize = 12
+predInput.TextColor3 = Color3.fromRGB(255,255,255)
+predInput.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+predInput.ClearTextOnFocus = false
+
+local predNote = Instance.new("TextLabel", frame)
+predNote.Size = UDim2.new(1, -20, 0, 35)
+predNote.Position = UDim2.new(0, 10, 0, 310)
+predNote.BackgroundTransparency = 1
+predNote.Text = "Note: 1 Strength = 2 Studs ahead\n~100 Avg Ping = ~5-8 Strength (tùy thuộc speed)"
+predNote.Font = Enum.Font.Gotham
+predNote.TextSize = 10
+predNote.TextColor3 = Color3.fromRGB(200,200,200)
+predNote.TextXAlignment = Enum.TextXAlignment.Left
+predNote.TextWrapped = true
+
+-- [[ FOV UI ]]
 local fovLabel = Instance.new("TextLabel", frame)
 fovLabel.Size = UDim2.new(1, -20, 0, 20)
-fovLabel.Position = UDim2.new(0, 10, 0, 275)
+fovLabel.Position = UDim2.new(0, 10, 0, 355)
 fovLabel.BackgroundTransparency = 1
 fovLabel.Text = "FOV: 90"
 fovLabel.Font = Enum.Font.Gotham
@@ -299,7 +331,7 @@ fovLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local fovSlider = Instance.new("Frame", frame)
 fovSlider.Size = UDim2.new(1, -20, 0, 10)
-fovSlider.Position = UDim2.new(0, 10, 0, 300)
+fovSlider.Position = UDim2.new(0, 10, 0, 380)
 fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
 
 local fovFill = Instance.new("Frame", fovSlider)
@@ -324,7 +356,7 @@ end)
 
 local fpLabel = Instance.new("TextLabel", frame)
 fpLabel.Size = UDim2.new(1, -20, 0, 20)
-fpLabel.Position = UDim2.new(0, 10, 0, 325)
+fpLabel.Position = UDim2.new(0, 10, 0, 405)
 fpLabel.BackgroundTransparency = 1
 fpLabel.Text = "First Person: OFF"
 fpLabel.Font = Enum.Font.Gotham
@@ -335,7 +367,7 @@ fpLabel.TextXAlignment = Enum.TextXAlignment.Left
 local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
-    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 460)
+    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 560)
     for _, child in ipairs(frame:GetChildren()) do
         if child ~= topBar then child.Visible = not minimized end
     end
@@ -368,6 +400,24 @@ espBtn.MouseButton1Click:Connect(function()
     refreshToolEsp()
 end)
 
+predBtn.MouseButton1Click:Connect(function()
+    predictionEnabled = not predictionEnabled
+    predBtn.Text = predictionEnabled and "PREDICTION: ON" or "PREDICTION: OFF"
+    predBtn.BackgroundColor3 = predictionEnabled and Color3.fromRGB(150, 0, 200) or Color3.fromRGB(60, 60, 60)
+end)
+
+predInput.FocusLost:Connect(function()
+    local num = tonumber(predInput.Text)
+    if num then
+        -- Giới hạn từ 0 đến 100
+        predStrength = math.clamp(num, 0, 100)
+    else
+        predStrength = 0
+    end
+    predInput.Text = tostring(predStrength)
+end)
+
+-- LOGIC AIMBOT KẾT HỢP PREDICTION
 RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
     updateDrawings()
     if not aimingEnabled or not LocalPlayer.Character then return end
@@ -382,7 +432,27 @@ RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1
     local target = getClosestEnemyInFOV()
     if target and target.Character then
         local tHead = target.Character:FindFirstChild("Head")
-        if tHead then lookAt(tHead.Position) end
+        local tHrp = target.Character:FindFirstChild("HumanoidRootPart")
+        
+        if tHead and tHrp then
+            local aimPosition = tHead.Position
+            
+            -- Áp dụng Prediction nếu bật
+            if predictionEnabled and predStrength > 0 then
+                local velocity = tHrp.Velocity
+                -- Bỏ qua trục Y (nhảy) để tránh lệch aim lên trời khi địch rơi, hoặc để nguyên tùy bạn. Ở đây lấy tổng Velocity
+                if velocity.Magnitude > 1 then
+                    -- 1 Strength = 2 Studs. Vậy hệ số nhân là (Strength * 2) / Velocity.Magnitude để dịch trước vị trí
+                    -- Tối ưu: Tính thời gian đạn bay dựa trên khoảng cách / tốc độ đạn. Nhưng yêu cầu là 1 Str = 2 Studs
+                    -- Công thức chuẩn theo yêu cầu: Hướng di chuyển (Normalized) * (Strength * 2)
+                    local moveDirection = velocity.Unit
+                    aimPosition = aimPosition + (moveDirection * (predStrength * 2))
+                end
+                -- Nếu kẻ địch đứng im (Velocity.Magnitude < 1), aimPosition giữ nguyên là tHead.Position
+            end
+            
+            lookAt(aimPosition)
+        end
     end
 end)
 

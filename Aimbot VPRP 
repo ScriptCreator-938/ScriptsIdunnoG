@@ -208,7 +208,7 @@ gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 280, 0, 560) -- Tăng chiều cao để chứa Prediction
+frame.Size = UDim2.new(0, 280, 0, 560) 
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Active = true
@@ -311,7 +311,7 @@ local predNote = Instance.new("TextLabel", frame)
 predNote.Size = UDim2.new(1, -20, 0, 35)
 predNote.Position = UDim2.new(0, 10, 0, 310)
 predNote.BackgroundTransparency = 1
-predNote.Text = "Note: 1 Strength = 2 Studs ahead\n~100 Avg Ping = ~5-8 Strength (tùy thuộc speed)"
+predNote.Text = "Note: 1 Strength = 0.5 Studs ahead\n~100 Avg Ping = Tùy chỉnh Strength (tùy thuộc speed)" -- Đã update
 predNote.Font = Enum.Font.Gotham
 predNote.TextSize = 10
 predNote.TextColor3 = Color3.fromRGB(200,200,200)
@@ -417,7 +417,7 @@ predInput.FocusLost:Connect(function()
     predInput.Text = tostring(predStrength)
 end)
 
--- LOGIC AIMBOT KẾT HỢP PREDICTION
+-- LOGIC AIMBOT KẾT HỢP PREDICTION (Đã Update hệ số 0.5)
 RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
     updateDrawings()
     if not aimingEnabled or not LocalPlayer.Character then return end
@@ -440,15 +440,11 @@ RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1
             -- Áp dụng Prediction nếu bật
             if predictionEnabled and predStrength > 0 then
                 local velocity = tHrp.Velocity
-                -- Bỏ qua trục Y (nhảy) để tránh lệch aim lên trời khi địch rơi, hoặc để nguyên tùy bạn. Ở đây lấy tổng Velocity
                 if velocity.Magnitude > 1 then
-                    -- 1 Strength = 2 Studs. Vậy hệ số nhân là (Strength * 2) / Velocity.Magnitude để dịch trước vị trí
-                    -- Tối ưu: Tính thời gian đạn bay dựa trên khoảng cách / tốc độ đạn. Nhưng yêu cầu là 1 Str = 2 Studs
-                    -- Công thức chuẩn theo yêu cầu: Hướng di chuyển (Normalized) * (Strength * 2)
+                    -- 1 Strength = 0.5 Studs. (Đã update theo yêu cầu mới)
                     local moveDirection = velocity.Unit
-                    aimPosition = aimPosition + (moveDirection * (predStrength * 2))
+                    aimPosition = aimPosition + (moveDirection * (predStrength * 0.5))
                 end
-                -- Nếu kẻ địch đứng im (Velocity.Magnitude < 1), aimPosition giữ nguyên là tHead.Position
             end
             
             lookAt(aimPosition)

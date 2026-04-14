@@ -25,7 +25,7 @@ end
 
 StarterGui:SetCore("SendNotification", {
     Title = "Aimbot Loaded",
-    Text = "Aimbot VPRP V2: by LazyMansScript + ESP Tools + Prediction",
+    Text = "Aimbot VPRP V2: by LazyMansScript + Filter Stun/Tase",
     Duration = 5
 })
 
@@ -34,9 +34,10 @@ local fov = 90
 local aimingEnabled = true
 local filterDangerous = false
 local filterInnocent = false 
+local filterStunTase = false -- Biến mới (RuleSC)
 local espToolsEnabled = false 
-local predictionEnabled = false -- Biến trạng thái Prediction
-local predStrength = 0 -- Sức mạnh Prediction
+local predictionEnabled = false 
+local predStrength = 0 
 
 -- CẬP NHẬT DANH SÁCH DANGEROUS TOOLS (RuleSC)
 local dangerousItems = {
@@ -166,6 +167,19 @@ local function isNotInnocent(player)
     return true
 end
 
+-- KIỂM TRA STUNNED/TASED (RuleSC)
+local function isStunnedOrTased(player)
+    local svVars = player:FindFirstChild("ServerVariables")
+    if svVars then
+        local stunned = svVars:FindFirstChild("Stunned")
+        local tased = svVars:FindFirstChild("Tased")
+        if (stunned and stunned.Value == true) or (tased and tased.Value == true) then
+            return true
+        end
+    end
+    return false
+end
+
 local function getClosestEnemyInFOV()
     local closest, closestDist = nil, math.huge
     local screenCenter = Cam.ViewportSize / 2
@@ -175,6 +189,7 @@ local function getClosestEnemyInFOV()
             if not isEnemy(player) then continue end
             if filterDangerous and not isDangerous(player) then continue end
             if filterInnocent and not isNotInnocent(player) then continue end
+            if filterStunTase and isStunnedOrTased(player) then continue end -- Logic mới (RuleSC)
 
             local char = player.Character
             if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then continue end
@@ -208,7 +223,7 @@ gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 280, 0, 560) 
+frame.Size = UDim2.new(0, 280, 0, 600) -- Tăng size để chứa nút mới
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Active = true
@@ -264,9 +279,19 @@ innocentBtn.TextSize = 14
 innocentBtn.TextColor3 = Color3.fromRGB(255,255,255)
 innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
+-- NÚT FILTER STUN & TASE (RuleSC)
+local stunBtn = Instance.new("TextButton", frame)
+stunBtn.Size = UDim2.new(1, -20, 0, 40)
+stunBtn.Position = UDim2.new(0, 10, 0, 180)
+stunBtn.Text = "FILTER STUN & TASE: OFF"
+stunBtn.Font = Enum.Font.GothamBold
+stunBtn.TextSize = 14
+stunBtn.TextColor3 = Color3.fromRGB(255,255,255)
+stunBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
 local espBtn = Instance.new("TextButton", frame)
 espBtn.Size = UDim2.new(1, -20, 0, 40)
-espBtn.Position = UDim2.new(0, 10, 0, 180)
+espBtn.Position = UDim2.new(0, 10, 0, 225)
 espBtn.Text = "ESP DROPPED TOOLS: OFF"
 espBtn.Font = Enum.Font.GothamBold
 espBtn.TextSize = 14
@@ -275,7 +300,7 @@ espBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
 local toolFastBtn = Instance.new("TextButton", frame)
 toolFastBtn.Size = UDim2.new(1, -20, 0, 40)
-toolFastBtn.Position = UDim2.new(0, 10, 0, 225)
+toolFastBtn.Position = UDim2.new(0, 10, 0, 270)
 toolFastBtn.Text = "EXECUTE: GET TOOL FAST"
 toolFastBtn.Font = Enum.Font.GothamBold
 toolFastBtn.TextSize = 14
@@ -289,7 +314,7 @@ end)
 -- [[ PREDICTION UI ]]
 local predBtn = Instance.new("TextButton", frame)
 predBtn.Size = UDim2.new(0.5, -15, 0, 30)
-predBtn.Position = UDim2.new(0, 10, 0, 275)
+predBtn.Position = UDim2.new(0, 10, 0, 320)
 predBtn.Text = "PREDICTION: OFF"
 predBtn.Font = Enum.Font.GothamBold
 predBtn.TextSize = 12
@@ -298,7 +323,7 @@ predBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
 local predInput = Instance.new("TextBox", frame)
 predInput.Size = UDim2.new(0.5, -15, 0, 30)
-predInput.Position = UDim2.new(0.5, 5, 0, 275)
+predInput.Position = UDim2.new(0.5, 5, 0, 320)
 predInput.Text = "0"
 predInput.PlaceholderText = "Strength (0-100)"
 predInput.Font = Enum.Font.GothamBold
@@ -309,9 +334,9 @@ predInput.ClearTextOnFocus = false
 
 local predNote = Instance.new("TextLabel", frame)
 predNote.Size = UDim2.new(1, -20, 0, 35)
-predNote.Position = UDim2.new(0, 10, 0, 310)
+predNote.Position = UDim2.new(0, 10, 0, 355)
 predNote.BackgroundTransparency = 1
-predNote.Text = "Note: 1 Strength = 0.5 Studs ahead\n~100 Avg Ping = Tùy chỉnh Strength (tùy thuộc speed)" -- Đã update
+predNote.Text = "Note: 1 Strength = 0.5 Studs ahead\nFilter Stun: Bỏ qua mục tiêu bị choáng"
 predNote.Font = Enum.Font.Gotham
 predNote.TextSize = 10
 predNote.TextColor3 = Color3.fromRGB(200,200,200)
@@ -321,7 +346,7 @@ predNote.TextWrapped = true
 -- [[ FOV UI ]]
 local fovLabel = Instance.new("TextLabel", frame)
 fovLabel.Size = UDim2.new(1, -20, 0, 20)
-fovLabel.Position = UDim2.new(0, 10, 0, 355)
+fovLabel.Position = UDim2.new(0, 10, 0, 400)
 fovLabel.BackgroundTransparency = 1
 fovLabel.Text = "FOV: 90"
 fovLabel.Font = Enum.Font.Gotham
@@ -331,7 +356,7 @@ fovLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local fovSlider = Instance.new("Frame", frame)
 fovSlider.Size = UDim2.new(1, -20, 0, 10)
-fovSlider.Position = UDim2.new(0, 10, 0, 380)
+fovSlider.Position = UDim2.new(0, 10, 0, 425)
 fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
 
 local fovFill = Instance.new("Frame", fovSlider)
@@ -356,7 +381,7 @@ end)
 
 local fpLabel = Instance.new("TextLabel", frame)
 fpLabel.Size = UDim2.new(1, -20, 0, 20)
-fpLabel.Position = UDim2.new(0, 10, 0, 405)
+fpLabel.Position = UDim2.new(0, 10, 0, 450)
 fpLabel.BackgroundTransparency = 1
 fpLabel.Text = "First Person: OFF"
 fpLabel.Font = Enum.Font.Gotham
@@ -367,7 +392,7 @@ fpLabel.TextXAlignment = Enum.TextXAlignment.Left
 local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
-    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 560)
+    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 600)
     for _, child in ipairs(frame:GetChildren()) do
         if child ~= topBar then child.Visible = not minimized end
     end
@@ -393,6 +418,12 @@ innocentBtn.MouseButton1Click:Connect(function()
     innocentBtn.BackgroundColor3 = filterInnocent and Color3.fromRGB(160, 0, 160) or Color3.fromRGB(60, 60, 60)
 end)
 
+stunBtn.MouseButton1Click:Connect(function()
+    filterStunTase = not filterStunTase
+    stunBtn.Text = filterStunTase and "FILTER STUN & TASE: ON" or "FILTER STUN & TASE: OFF"
+    stunBtn.BackgroundColor3 = filterStunTase and Color3.fromRGB(255, 0, 100) or Color3.fromRGB(60, 60, 60)
+end)
+
 espBtn.MouseButton1Click:Connect(function()
     espToolsEnabled = not espToolsEnabled
     espBtn.Text = espToolsEnabled and "ESP DROPPED TOOLS: ON" or "ESP DROPPED TOOLS: OFF"
@@ -409,7 +440,6 @@ end)
 predInput.FocusLost:Connect(function()
     local num = tonumber(predInput.Text)
     if num then
-        -- Giới hạn từ 0 đến 100
         predStrength = math.clamp(num, 0, 100)
     else
         predStrength = 0
@@ -417,7 +447,7 @@ predInput.FocusLost:Connect(function()
     predInput.Text = tostring(predStrength)
 end)
 
--- LOGIC AIMBOT KẾT HỢP PREDICTION (Đã Update hệ số 0.5)
+-- LOGIC AIMBOT KẾT HỢP PREDICTION & FILTER
 RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
     updateDrawings()
     if not aimingEnabled or not LocalPlayer.Character then return end
@@ -433,20 +463,19 @@ RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1
     if target and target.Character then
         local tHead = target.Character:FindFirstChild("Head")
         local tHrp = target.Character:FindFirstChild("HumanoidRootPart")
-        
+
         if tHead and tHrp then
             local aimPosition = tHead.Position
-            
-            -- Áp dụng Prediction nếu bật
+
+            -- Áp dụng Prediction (Hệ số 0.5 studs per strength)
             if predictionEnabled and predStrength > 0 then
                 local velocity = tHrp.Velocity
                 if velocity.Magnitude > 1 then
-                    -- 1 Strength = 0.5 Studs. (Đã update theo yêu cầu mới)
                     local moveDirection = velocity.Unit
                     aimPosition = aimPosition + (moveDirection * (predStrength * 0.5))
                 end
             end
-            
+
             lookAt(aimPosition)
         end
     end
@@ -460,4 +489,3 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         toolEspFolder:Destroy()
     end
 end)
- 

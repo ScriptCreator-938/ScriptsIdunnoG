@@ -35,6 +35,8 @@ local aimingEnabled = true
 local filterDangerous = false
 local filterInnocent = false 
 local filterStunTase = false -- Biến mới (RuleSC)
+local filterCuffed = false -- Biến thêm mới (RuleSC)
+local filterDetained = false -- Biến thêm mới (RuleSC)
 local espToolsEnabled = false 
 local predictionEnabled = false 
 local predStrength = 0 
@@ -180,6 +182,22 @@ local function isStunnedOrTased(player)
     return false
 end
 
+-- KIỂM TRA CUFFED/DETAINED (MỚI - RuleSC)
+local function isCuffedOrDetained(player)
+    local svVars = player:FindFirstChild("ServerVariables")
+    if svVars then
+        local handcuffs = svVars:FindFirstChild("Handcuffs")
+        if handcuffs then
+            local cuffed = handcuffs:FindFirstChild("Cuffed")
+            local detained = handcuffs:FindFirstChild("Detained")
+            local is_c = (filterCuffed and cuffed and cuffed.Value == true)
+            local is_d = (filterDetained and detained and detained.Value == true)
+            return is_c or is_d
+        end
+    end
+    return false
+end
+
 local function getClosestEnemyInFOV()
     local closest, closestDist = nil, math.huge
     local screenCenter = Cam.ViewportSize / 2
@@ -189,7 +207,8 @@ local function getClosestEnemyInFOV()
             if not isEnemy(player) then continue end
             if filterDangerous and not isDangerous(player) then continue end
             if filterInnocent and not isNotInnocent(player) then continue end
-            if filterStunTase and isStunnedOrTased(player) then continue end -- Logic mới (RuleSC)
+            if filterStunTase and isStunnedOrTased(player) then continue end
+            if isCuffedOrDetained(player) then continue end -- Check mới
 
             local char = player.Character
             if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then continue end
@@ -223,18 +242,30 @@ gui.Parent = game.CoreGui
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 280, 0, 600) -- Tăng size để chứa nút mới
+frame.Size = UDim2.new(0, 280, 0, 600) 
 frame.Position = UDim2.new(0.05, 0, 0.2, 0)
 frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 frame.Active = true
 frame.Draggable = true
+
+-- HỆ THỐNG TRANG (RuleSC - Không xóa Gui cũ)
+local page1 = Instance.new("Frame", frame)
+page1.Size = UDim2.new(1, 0, 1, -30)
+page1.Position = UDim2.new(0, 0, 0, 30)
+page1.BackgroundTransparency = 1
+
+local page2 = Instance.new("Frame", frame)
+page2.Size = page1.Size
+page2.Position = page1.Position
+page2.BackgroundTransparency = 1
+page2.Visible = false
 
 local topBar = Instance.new("Frame", frame)
 topBar.Size = UDim2.new(1, 0, 0, 30)
 topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 
 local title = Instance.new("TextLabel", topBar)
-title.Size = UDim2.new(1, -30, 1, 0)
+title.Size = UDim2.new(1, -60, 1, 0)
 title.Position = UDim2.new(0, 10, 0, 0)
 title.BackgroundTransparency = 1
 title.Text = "VPRP AIMBOT + TOOLS ESP"
@@ -242,6 +273,19 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 14
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Nút chuyển trang (RuleSC)
+local nextPage = Instance.new("TextButton", topBar)
+nextPage.Size = UDim2.new(0, 30, 1, 0)
+nextPage.Position = UDim2.new(1, -60, 0, 0)
+nextPage.Text = ">"
+nextPage.TextColor3 = Color3.new(1,1,1)
+nextPage.BackgroundTransparency = 1
+nextPage.MouseButton1Click:Connect(function()
+    page1.Visible = not page1.Visible
+    page2.Visible = not page2.Visible
+    nextPage.Text = page1.Visible and ">" or "<"
+end)
 
 local minimize = Instance.new("TextButton", topBar)
 minimize.Size = UDim2.new(0, 30, 1, 0)
@@ -252,55 +296,55 @@ minimize.TextSize = 18
 minimize.TextColor3 = Color3.fromRGB(255,255,255)
 minimize.BackgroundTransparency = 1
 
-local toggle = Instance.new("TextButton", frame)
+-- [[ PAGE 1 ELEMENTS (GIỮ NGUYÊN HOÀN TOÀN) ]]
+local toggle = Instance.new("TextButton", page1)
 toggle.Size = UDim2.new(1, -20, 0, 40)
-toggle.Position = UDim2.new(0, 10, 0, 45)
+toggle.Position = UDim2.new(0, 10, 0, 15)
 toggle.Text = "AIMBOT: ON"
 toggle.Font = Enum.Font.GothamBold
 toggle.TextSize = 16
 toggle.TextColor3 = Color3.fromRGB(255,255,255)
 toggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
 
-local dangerousBtn = Instance.new("TextButton", frame)
+local dangerousBtn = Instance.new("TextButton", page1)
 dangerousBtn.Size = UDim2.new(1, -20, 0, 40)
-dangerousBtn.Position = UDim2.new(0, 10, 0, 90)
+dangerousBtn.Position = UDim2.new(0, 10, 0, 60)
 dangerousBtn.Text = "FILTER DANGEROUS: OFF"
 dangerousBtn.Font = Enum.Font.GothamBold
 dangerousBtn.TextSize = 14
 dangerousBtn.TextColor3 = Color3.fromRGB(255,255,255)
 dangerousBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
-local innocentBtn = Instance.new("TextButton", frame)
+local innocentBtn = Instance.new("TextButton", page1)
 innocentBtn.Size = UDim2.new(1, -20, 0, 40)
-innocentBtn.Position = UDim2.new(0, 10, 0, 135)
+innocentBtn.Position = UDim2.new(0, 10, 0, 105)
 innocentBtn.Text = "FILTER INNOCENT: OFF"
 innocentBtn.Font = Enum.Font.GothamBold
 innocentBtn.TextSize = 14
 innocentBtn.TextColor3 = Color3.fromRGB(255,255,255)
 innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
--- NÚT FILTER STUN & TASE (RuleSC)
-local stunBtn = Instance.new("TextButton", frame)
+local stunBtn = Instance.new("TextButton", page1)
 stunBtn.Size = UDim2.new(1, -20, 0, 40)
-stunBtn.Position = UDim2.new(0, 10, 0, 180)
+stunBtn.Position = UDim2.new(0, 10, 0, 150)
 stunBtn.Text = "FILTER STUN & TASE: OFF"
 stunBtn.Font = Enum.Font.GothamBold
 stunBtn.TextSize = 14
 stunBtn.TextColor3 = Color3.fromRGB(255,255,255)
 stunBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
-local espBtn = Instance.new("TextButton", frame)
+local espBtn = Instance.new("TextButton", page1)
 espBtn.Size = UDim2.new(1, -20, 0, 40)
-espBtn.Position = UDim2.new(0, 10, 0, 225)
+espBtn.Position = UDim2.new(0, 10, 0, 195)
 espBtn.Text = "ESP DROPPED TOOLS: OFF"
 espBtn.Font = Enum.Font.GothamBold
 espBtn.TextSize = 14
 espBtn.TextColor3 = Color3.fromRGB(255,255,255)
 espBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
-local toolFastBtn = Instance.new("TextButton", frame)
+local toolFastBtn = Instance.new("TextButton", page1)
 toolFastBtn.Size = UDim2.new(1, -20, 0, 40)
-toolFastBtn.Position = UDim2.new(0, 10, 0, 270)
+toolFastBtn.Position = UDim2.new(0, 10, 0, 240)
 toolFastBtn.Text = "EXECUTE: GET TOOL FAST"
 toolFastBtn.Font = Enum.Font.GothamBold
 toolFastBtn.TextSize = 14
@@ -311,19 +355,18 @@ toolFastBtn.MouseButton1Click:Connect(function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Get%20Tool%20Fast%20VPRP"))()
 end)
 
--- [[ PREDICTION UI ]]
-local predBtn = Instance.new("TextButton", frame)
+local predBtn = Instance.new("TextButton", page1)
 predBtn.Size = UDim2.new(0.5, -15, 0, 30)
-predBtn.Position = UDim2.new(0, 10, 0, 320)
+predBtn.Position = UDim2.new(0, 10, 0, 290)
 predBtn.Text = "PREDICTION: OFF"
 predBtn.Font = Enum.Font.GothamBold
 predBtn.TextSize = 12
 predBtn.TextColor3 = Color3.fromRGB(255,255,255)
 predBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
-local predInput = Instance.new("TextBox", frame)
+local predInput = Instance.new("TextBox", page1)
 predInput.Size = UDim2.new(0.5, -15, 0, 30)
-predInput.Position = UDim2.new(0.5, 5, 0, 320)
+predInput.Position = UDim2.new(0.5, 5, 0, 290)
 predInput.Text = "0"
 predInput.PlaceholderText = "Strength (0-100)"
 predInput.Font = Enum.Font.GothamBold
@@ -332,9 +375,9 @@ predInput.TextColor3 = Color3.fromRGB(255,255,255)
 predInput.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 predInput.ClearTextOnFocus = false
 
-local predNote = Instance.new("TextLabel", frame)
+local predNote = Instance.new("TextLabel", page1)
 predNote.Size = UDim2.new(1, -20, 0, 35)
-predNote.Position = UDim2.new(0, 10, 0, 355)
+predNote.Position = UDim2.new(0, 10, 0, 325)
 predNote.BackgroundTransparency = 1
 predNote.Text = "Note: 1 Strength = 0.5 Studs ahead\nFilter Stun: Bỏ qua mục tiêu bị choáng"
 predNote.Font = Enum.Font.Gotham
@@ -343,10 +386,9 @@ predNote.TextColor3 = Color3.fromRGB(200,200,200)
 predNote.TextXAlignment = Enum.TextXAlignment.Left
 predNote.TextWrapped = true
 
--- [[ FOV UI ]]
-local fovLabel = Instance.new("TextLabel", frame)
+local fovLabel = Instance.new("TextLabel", page1)
 fovLabel.Size = UDim2.new(1, -20, 0, 20)
-fovLabel.Position = UDim2.new(0, 10, 0, 400)
+fovLabel.Position = UDim2.new(0, 10, 0, 370)
 fovLabel.BackgroundTransparency = 1
 fovLabel.Text = "FOV: 90"
 fovLabel.Font = Enum.Font.Gotham
@@ -354,15 +396,45 @@ fovLabel.TextSize = 14
 fovLabel.TextColor3 = Color3.fromRGB(255,255,255)
 fovLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local fovSlider = Instance.new("Frame", frame)
+local fovSlider = Instance.new("Frame", page1)
 fovSlider.Size = UDim2.new(1, -20, 0, 10)
-fovSlider.Position = UDim2.new(0, 10, 0, 425)
+fovSlider.Position = UDim2.new(0, 10, 0, 395)
 fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
 
 local fovFill = Instance.new("Frame", fovSlider)
 fovFill.Size = UDim2.new(fov/180, 0, 1, 0)
 fovFill.BackgroundColor3 = Color3.fromRGB(0,160,0)
 
+local fpLabel = Instance.new("TextLabel", page1)
+fpLabel.Size = UDim2.new(1, -20, 0, 20)
+fpLabel.Position = UDim2.new(0, 10, 0, 420)
+fpLabel.BackgroundTransparency = 1
+fpLabel.Text = "First Person: OFF"
+fpLabel.Font = Enum.Font.Gotham
+fpLabel.TextSize = 14
+fpLabel.TextColor3 = Color3.fromRGB(255,255,255)
+fpLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- [[ PAGE 2 ELEMENTS (Cuffed & Detained) ]]
+local cuffedToggle = Instance.new("TextButton", page2)
+cuffedToggle.Size = UDim2.new(1, -20, 0, 40)
+cuffedToggle.Position = UDim2.new(0, 10, 0, 15)
+cuffedToggle.Text = "FILTER CUFFED: OFF"
+cuffedToggle.Font = Enum.Font.GothamBold
+cuffedToggle.TextSize = 14
+cuffedToggle.TextColor3 = Color3.fromRGB(255,255,255)
+cuffedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local detainedToggle = Instance.new("TextButton", page2)
+detainedToggle.Size = UDim2.new(1, -20, 0, 40)
+detainedToggle.Position = UDim2.new(0, 10, 0, 60)
+detainedToggle.Text = "FILTER DETAINED: OFF"
+detainedToggle.Font = Enum.Font.GothamBold
+detainedToggle.TextSize = 14
+detainedToggle.TextColor3 = Color3.fromRGB(255,255,255)
+detainedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+-- [[ LOGIC GỐC (GIỮ NGUYÊN) ]]
 local dragging = false
 fovSlider.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
@@ -379,27 +451,15 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
-local fpLabel = Instance.new("TextLabel", frame)
-fpLabel.Size = UDim2.new(1, -20, 0, 20)
-fpLabel.Position = UDim2.new(0, 10, 0, 450)
-fpLabel.BackgroundTransparency = 1
-fpLabel.Text = "First Person: OFF"
-fpLabel.Font = Enum.Font.Gotham
-fpLabel.TextSize = 14
-fpLabel.TextColor3 = Color3.fromRGB(255,255,255)
-fpLabel.TextXAlignment = Enum.TextXAlignment.Left
-
 local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 600)
-    for _, child in ipairs(frame:GetChildren()) do
-        if child ~= topBar then child.Visible = not minimized end
-    end
+    page1.Visible = not minimized and (nextPage.Text == ">")
+    page2.Visible = not minimized and (nextPage.Text == "<")
     minimize.Text = minimized and "+" or "-"
 end)
 
--- Event Listeners
 toggle.MouseButton1Click:Connect(function()
     aimingEnabled = not aimingEnabled
     toggle.Text = aimingEnabled and "AIMBOT: ON" or "AIMBOT: OFF"
@@ -424,6 +484,19 @@ stunBtn.MouseButton1Click:Connect(function()
     stunBtn.BackgroundColor3 = filterStunTase and Color3.fromRGB(255, 0, 100) or Color3.fromRGB(60, 60, 60)
 end)
 
+-- LOGIC MỚI (RuleSC)
+cuffedToggle.MouseButton1Click:Connect(function()
+    filterCuffed = not filterCuffed
+    cuffedToggle.Text = filterCuffed and "FILTER CUFFED: ON" or "FILTER CUFFED: OFF"
+    cuffedToggle.BackgroundColor3 = filterCuffed and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(60, 60, 60)
+end)
+
+detainedToggle.MouseButton1Click:Connect(function()
+    filterDetained = not filterDetained
+    detainedToggle.Text = filterDetained and "FILTER DETAINED: ON" or "FILTER DETAINED: OFF"
+    detainedToggle.BackgroundColor3 = filterDetained and Color3.fromRGB(100, 0, 200) or Color3.fromRGB(60, 60, 60)
+end)
+
 espBtn.MouseButton1Click:Connect(function()
     espToolsEnabled = not espToolsEnabled
     espBtn.Text = espToolsEnabled and "ESP DROPPED TOOLS: ON" or "ESP DROPPED TOOLS: OFF"
@@ -439,43 +512,31 @@ end)
 
 predInput.FocusLost:Connect(function()
     local num = tonumber(predInput.Text)
-    if num then
-        predStrength = math.clamp(num, 0, 100)
-    else
-        predStrength = 0
-    end
+    if num then predStrength = math.clamp(num, 0, 100) else predStrength = 0 end
     predInput.Text = tostring(predStrength)
 end)
 
--- LOGIC AIMBOT KẾT HỢP PREDICTION & FILTER
+-- [[ RENDER LOOP - GIỮ NGUYÊN 0.5 ]]
 RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
     updateDrawings()
     if not aimingEnabled or not LocalPlayer.Character then return end
-
     local head = LocalPlayer.Character:FindFirstChild("Head")
     if not head then return end
-
     local isFP = (Cam.CFrame.Position - head.Position).Magnitude <= 1
     fpLabel.Text = isFP and "First Person: ON" or "First Person: OFF"
     if not isFP then return end
-
     local target = getClosestEnemyInFOV()
     if target and target.Character then
         local tHead = target.Character:FindFirstChild("Head")
         local tHrp = target.Character:FindFirstChild("HumanoidRootPart")
-
         if tHead and tHrp then
             local aimPosition = tHead.Position
-
-            -- Áp dụng Prediction (Hệ số 0.5 studs per strength)
             if predictionEnabled and predStrength > 0 then
                 local velocity = tHrp.Velocity
                 if velocity.Magnitude > 1 then
-                    local moveDirection = velocity.Unit
-                    aimPosition = aimPosition + (moveDirection * (predStrength * 0.5))
+                    aimPosition = aimPosition + (velocity.Unit * (predStrength * 0.5))
                 end
             end
-
             lookAt(aimPosition)
         end
     end
@@ -489,4 +550,3 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         toolEspFolder:Destroy()
     end
 end)
-  

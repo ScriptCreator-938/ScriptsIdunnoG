@@ -455,10 +455,15 @@ local minimized = false
 minimize.MouseButton1Click:Connect(function()
     minimized = not minimized
     frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 600)
+    
+    -- Thêm dòng này để ẩn/hiện nút chuyển trang
+    nextPage.Visible = not minimized
+    
     page1.Visible = not minimized and (nextPage.Text == ">")
     page2.Visible = not minimized and (nextPage.Text == "<")
     minimize.Text = minimized and "+" or "-"
 end)
+
 
 toggle.MouseButton1Click:Connect(function()
     aimingEnabled = not aimingEnabled

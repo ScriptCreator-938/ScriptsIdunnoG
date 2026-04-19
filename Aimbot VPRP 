@@ -25,7 +25,7 @@ end
 
 StarterGui:SetCore("SendNotification", {
     Title = "Aimbot Loaded",
-    Text = "VPRP V2: Fixed Minimize & Font Sizes",
+    Text = "Aimbot VPRP V2: by LazyMansScript + Filter Stun/Tase",
     Duration = 5
 })
 
@@ -33,31 +33,23 @@ StarterGui:SetCore("SendNotification", {
 local fov = 90
 local aimingEnabled = true
 local filterDangerous = false
-local filterInnocent = false
-local filterStunTase = false
-local filterCuffed = false
-local filterDetained = false
-local espToolsEnabled = false
-local predictionEnabled = false
-local predStrength = 0
-local checkFirstPerson = true
-local espInnocentEnabled = false 
-local minimized = false
+local filterInnocent = false 
+local filterStunTase = false 
+local filterCuffed = false 
+local filterDetained = false 
+local espToolsEnabled = false 
+local predictionEnabled = false 
+local predStrength = 0 
+local checkFirstPerson = true -- BIẾN MỚI THÊM VÀO (RuleSC)
 
+-- CẬP NHẬT DANH SÁCH DANGEROUS TOOLS
 local dangerousItems = {
-    "Rope", "Shiv", "Baton", "G17", "Employee Keycard",
-    "Corrections Keycard", "Directors Keycard", "Master Keycard",
+    "Rope", "Shiv", "Baton", "G17", "Employee Keycard", 
+    "Corrections Keycard", "Directors Keycard", "Master Keycard", 
     "G22", "G40", "M1014", "G36C", "HK416", "MP7",
-    "G18", "P90", "M4A1", "M82A1", "LEO MCX Spear", "The Harrow",
-    "Five Seven", "FNX45", "G18C", "SW500", "M1A1", "M3 Grease Gun",
+    "G18", "P90", "M4A1", "M82A1", "LEO MCX Spear", "The Harrow", 
+    "Five Seven", "FNX45", "G18C", "SW500", "M1A1", "M3 Grease Gun", 
     "M1928", "MP5", "Saiga 12K", "Model 590", "Terminator", "Patriot"
-}
-
-local allowedEspTeams = {
-    ["Slime green"] = true,
-    ["Neon orange"] = true,
-    ["Dusty Rose"] = true,
-    ["Dark stone grey"] = true
 }
 
 -- [[ SERVICES ]]
@@ -67,14 +59,77 @@ local Players = game:GetService("Players")
 local Cam = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
--- [[ DRAWINGS & FOLDERS ]]
+-- [[ FOV CIRCLE ]]
 local FOVring = Drawing.new("Circle")
-FOVring.Visible = true; FOVring.Thickness = 2; FOVring.Color = Color3.fromRGB(0, 0, 0); FOVring.Filled = false; FOVring.Radius = fov
+FOVring.Visible = true
+FOVring.Thickness = 2
+FOVring.Color = Color3.fromRGB(0, 0, 0)
+FOVring.Filled = false
+FOVring.Radius = fov
+FOVring.Position = Cam.ViewportSize / 2
 
-local toolEspFolder = Instance.new("Folder", game.CoreGui); toolEspFolder.Name = "ToolESP_Storage"
-local innocentEspFolder = Instance.new("Folder", game.CoreGui); innocentEspFolder.Name = "InnocentESP_Storage"
+local function updateDrawings()
+    FOVring.Position = Cam.ViewportSize / 2
+    FOVring.Radius = fov
+end
 
--- [[ LOGIC FUNCTIONS ]]
+-- [[ ESP DROPPED TOOLS LOGIC ]]
+local toolEspFolder = Instance.new("Folder", game.CoreGui)
+toolEspFolder.Name = "ToolESP_Storage"
+
+local function createToolEsp(toolModel)
+    if not toolModel:IsA("Model") then return end
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ToolESP"
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 100, 0, 20)
+    billboard.Adornee = toolModel:FindFirstChildWhichIsA("BasePart") or toolModel.PrimaryPart
+    billboard.MaxDistance = 500
+    billboard.Parent = toolEspFolder
+    local label = Instance.new("TextLabel", billboard)
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Text = toolModel.Name
+    label.TextColor3 = Color3.fromRGB(255, 255, 0) 
+    label.TextStrokeTransparency = 0
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 12
+    toolModel.AncestryChanged:Connect(function()
+        if not toolModel:IsDescendantOf(workspace) then billboard:Destroy() end
+    end)
+end
+
+local function refreshToolEsp()
+    toolEspFolder:ClearAllChildren()
+    if espToolsEnabled then
+        local droppedTools = workspace:FindFirstChild("DroppedTools")
+        if droppedTools then
+            for _, tool in ipairs(droppedTools:GetChildren()) do createToolEsp(tool) end
+        end
+    end
+end
+
+workspace:WaitForChild("DroppedTools").ChildAdded:Connect(function(child)
+    if espToolsEnabled then task.wait(0.1) createToolEsp(child) end
+end)
+
+-- [[ AIMBOT LOGIC ]]
+local function lookAt(targetPos)
+    Cam.CFrame = CFrame.new(Cam.CFrame.Position, targetPos)
+end
+
+local criminalColors = { ["Slime green"] = true, ["Neon orange"] = true, ["Dusty Rose"] = true, ["Plum"] = true, ["Dark stone grey"] = true }
+local deepBlueGroup = { ["Deep blue"] = true, ["Black"] = true, ["Navy blue"] = true, ["Fossil"] = true }
+
+local function isEnemy(player)
+    if not player.TeamColor or not LocalPlayer.TeamColor then return true end
+    local myColor = LocalPlayer.TeamColor.Name
+    local theirColor = player.TeamColor.Name
+    if deepBlueGroup[myColor] then return not deepBlueGroup[theirColor] end
+    if criminalColors[myColor] then return not criminalColors[theirColor] end
+    return player.TeamColor ~= LocalPlayer.TeamColor
+end
+
 local function isDangerous(player)
     local char = player.Character
     if not char then return false end
@@ -94,11 +149,6 @@ local function isNotInnocent(player)
         if innocentVal and innocentVal:IsA("ValueBase") then return innocentVal.Value == false end
     end
     return true
-end
-
-local function checkTotalInnocence(player)
-    if isDangerous(player) or isNotInnocent(player) then return false end
-    return true 
 end
 
 local function isStunnedOrTased(player)
@@ -124,43 +174,6 @@ local function isCuffedOrDetained(player)
     return false
 end
 
-local function isEnemy(player)
-    local criminalColors = { ["Slime green"] = true, ["Neon orange"] = true, ["Dusty Rose"] = true, ["Plum"] = true, ["Dark stone grey"] = true }
-    local deepBlueGroup = { ["Deep blue"] = true, ["Black"] = true, ["Navy blue"] = true, ["Fossil"] = true }
-    if not player.TeamColor or not LocalPlayer.TeamColor then return true end
-    local myColor = LocalPlayer.TeamColor.Name
-    local theirColor = player.TeamColor.Name
-    if deepBlueGroup[myColor] then return not deepBlueGroup[theirColor] end
-    if criminalColors[myColor] then return not criminalColors[theirColor] end
-    return player.TeamColor ~= LocalPlayer.TeamColor
-end
-
--- [[ INNOCENT ESP LOGIC (TextSize = 11) ]]
-local function createInnocentEsp(player)
-    if innocentEspFolder:FindFirstChild(player.Name) then return end
-    if not player.Character or not player.Character:FindFirstChild("Head") then return end
-    
-    local guiEsp = Instance.new("BillboardGui")
-    guiEsp.Name = player.Name; guiEsp.Size = UDim2.new(0, 260, 0, 40); guiEsp.AlwaysOnTop = true; guiEsp.StudsOffset = Vector3.new(0, 3, 0); guiEsp.MaxDistance = 1000; guiEsp.Adornee = player.Character.Head; guiEsp.Parent = innocentEspFolder
-    
-    local txt = Instance.new("TextLabel", guiEsp)
-    txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1; txt.TextStrokeTransparency = 0; txt.Font = Enum.Font.GothamBold; 
-    txt.TextSize = 11 -- CHỈNH NHỎ LẠI THEO YÊU CẦU
-    
-    local conn
-    conn = RunService.RenderStepped:Connect(function()
-        if not guiEsp.Parent or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-            conn:Disconnect(); guiEsp:Destroy(); return
-        end
-        local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude)
-        local isActuallyInnocent = checkTotalInnocence(player)
-        local status = isActuallyInnocent and "Innocent" or "Dangerous"
-        txt.TextColor3 = isActuallyInnocent and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-        txt.Text = "Security: Max | Status: "..status.." | "..player.DisplayName.." (@"..player.Name..") | Studs: "..dist
-    end)
-end
-
--- [[ AIMBOT TARGET ]]
 local function getClosestEnemyInFOV()
     local closest, closestDist = nil, math.huge
     local screenCenter = Cam.ViewportSize / 2
@@ -174,7 +187,11 @@ local function getClosestEnemyInFOV()
                 local pos, onScreen = Cam:WorldToViewportPoint(head.Position)
                 local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
                 if onScreen and dist < fov and dist < closestDist then
-                    closestDist = dist closest = player 
+                    local params = RaycastParams.new()
+                    params.FilterType = Enum.RaycastFilterType.Blacklist
+                    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+                    local res = workspace:Raycast(Cam.CFrame.Position, head.Position - Cam.CFrame.Position, params)
+                    if not res or res.Instance:IsDescendantOf(char) then closestDist = dist closest = player end
                 end
             end
         end
@@ -182,72 +199,188 @@ local function getClosestEnemyInFOV()
     return closest
 end
 
--- [[ GUI CONSTRUCTION ]]
+-- [[ GUI ]]
 local gui = Instance.new("ScreenGui", game.CoreGui)
-local frame = Instance.new("Frame", gui); frame.Size = UDim2.new(0, 280, 0, 600); frame.Position = UDim2.new(0.05, 0, 0.2, 0); frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35); frame.Active = true; frame.Draggable = true
-local topBar = Instance.new("Frame", frame); topBar.Size = UDim2.new(1, 0, 0, 30); topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-local title = Instance.new("TextLabel", topBar); title.Size = UDim2.new(1, -60, 1, 0); title.Position = UDim2.new(0, 10, 0, 0); title.BackgroundTransparency = 1; title.Text = "VPRP PREMIUM V2"; title.Font = "GothamBold"; title.TextSize = 14; title.TextColor3 = Color3.new(1,1,1); title.TextXAlignment = "Left"
+gui.Name = "VPRP_AIMBOT_GUI"
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 280, 0, 600) 
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.Active = true
+frame.Draggable = true
 
-local page1 = Instance.new("Frame", frame); page1.Size = UDim2.new(1, 0, 1, -30); page1.Position = UDim2.new(0, 0, 0, 30); page1.BackgroundTransparency = 1
-local page2 = Instance.new("Frame", frame); page2.Size = page1.Size; page2.Position = page1.Position; page2.BackgroundTransparency = 1; page2.Visible = false
+local topBar = Instance.new("Frame", frame)
+topBar.Size = UDim2.new(1, 0, 0, 30)
+topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 
-local nextPage = Instance.new("TextButton", topBar); nextPage.Size = UDim2.new(0, 30, 1, 0); nextPage.Position = UDim2.new(1, -60, 0, 0); nextPage.Text = ">"; nextPage.TextColor3 = Color3.new(1,1,1); nextPage.BackgroundTransparency = 1; nextPage.TextSize = 12
+local title = Instance.new("TextLabel", topBar)
+title.Size = UDim2.new(1, -60, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "VPRP AIMBOT + TOOLS ESP"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextXAlignment = Enum.TextXAlignment.Left
 
-local minimize = Instance.new("TextButton", topBar); minimize.Size = UDim2.new(0, 30, 1, 0); minimize.Position = UDim2.new(1, -30, 0, 0); minimize.Text = "-"; minimize.Font = "GothamBold"; minimize.TextSize = 20; minimize.TextColor3 = Color3.new(1,1,1); minimize.BackgroundTransparency = 1
+local page1 = Instance.new("Frame", frame)
+page1.Size = UDim2.new(1, 0, 1, -30)
+page1.Position = UDim2.new(0, 0, 0, 30)
+page1.BackgroundTransparency = 1
+
+local page2 = Instance.new("Frame", frame)
+page2.Size = page1.Size
+page2.Position = page1.Position
+page2.BackgroundTransparency = 1
+page2.Visible = false
+
+local nextPage = Instance.new("TextButton", topBar)
+nextPage.Size = UDim2.new(0, 30, 1, 0)
+nextPage.Position = UDim2.new(1, -60, 0, 0)
+nextPage.Text = ">"
+nextPage.TextColor3 = Color3.new(1,1,1)
+nextPage.BackgroundTransparency = 1
+nextPage.MouseButton1Click:Connect(function() page1.Visible = not page1.Visible page2.Visible = not page2.Visible nextPage.Text = page1.Visible and ">" or "<" end)
+
+local minimize = Instance.new("TextButton", topBar)
+minimize.Size = UDim2.new(0, 30, 1, 0)
+minimize.Position = UDim2.new(1, -30, 0, 0)
+minimize.Text = "-"
+minimize.Font = Enum.Font.GothamBold
+minimize.TextSize = 18
+minimize.TextColor3 = Color3.fromRGB(255,255,255)
+minimize.BackgroundTransparency = 1
 
 -- [[ PAGE 1 ELEMENTS ]]
-local toggle = Instance.new("TextButton", page1); toggle.Size = UDim2.new(1, -20, 0, 40); toggle.Position = UDim2.new(0, 10, 0, 15); toggle.Text = "AIMBOT: ON"; toggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0); toggle.Font = "GothamBold"; toggle.TextColor3 = Color3.new(1,1,1); toggle.TextSize = 15
-local dangerousBtn = Instance.new("TextButton", page1); dangerousBtn.Size = UDim2.new(1, -20, 0, 40); dangerousBtn.Position = UDim2.new(0, 10, 0, 60); dangerousBtn.Text = "FILTER DANGEROUS: OFF"; dangerousBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); dangerousBtn.Font = "GothamBold"; dangerousBtn.TextColor3 = Color3.new(1,1,1); dangerousBtn.TextSize = 14
-local innocentBtn = Instance.new("TextButton", page1); innocentBtn.Size = UDim2.new(1, -20, 0, 40); innocentBtn.Position = UDim2.new(0, 10, 0, 105); innocentBtn.Text = "FILTER INNOCENT: OFF"; innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); innocentBtn.Font = "GothamBold"; innocentBtn.TextColor3 = Color3.new(1,1,1); innocentBtn.TextSize = 14
-local stunBtn = Instance.new("TextButton", page1); stunBtn.Size = UDim2.new(1, -20, 0, 40); stunBtn.Position = UDim2.new(0, 10, 0, 150); stunBtn.Text = "FILTER STUN & TASE: OFF"; stunBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); stunBtn.Font = "GothamBold"; stunBtn.TextColor3 = Color3.new(1,1,1); stunBtn.TextSize = 14
-local espBtn = Instance.new("TextButton", page1); espBtn.Size = UDim2.new(1, -20, 0, 40); espBtn.Position = UDim2.new(0, 10, 0, 195); espBtn.Text = "ESP DROPPED TOOLS: OFF"; espBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); espBtn.Font = "GothamBold"; espBtn.TextColor3 = Color3.new(1,1,1); espBtn.TextSize = 14
-local toolFastBtn = Instance.new("TextButton", page1); toolFastBtn.Size = UDim2.new(1, -20, 0, 40); toolFastBtn.Position = UDim2.new(0, 10, 0, 240); toolFastBtn.Text = "EXECUTE: GET TOOL FAST"; toolFastBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200); toolFastBtn.Font = "GothamBold"; toolFastBtn.TextColor3 = Color3.new(1,1,1); toolFastBtn.TextSize = 14
-local predBtn = Instance.new("TextButton", page1); predBtn.Size = UDim2.new(0.5, -15, 0, 30); predBtn.Position = UDim2.new(0, 10, 0, 290); predBtn.Text = "PRED: OFF"; predBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); predBtn.Font = "GothamBold"; predBtn.TextColor3 = Color3.new(1,1,1); predBtn.TextSize = 13
-local predInput = Instance.new("TextBox", page1); predInput.Size = UDim2.new(0.5, -15, 0, 30); predInput.Position = UDim2.new(0.5, 5, 0, 290); predInput.Text = "0"; predInput.BackgroundColor3 = Color3.fromRGB(25, 25, 25); predInput.TextColor3 = Color3.new(1,1,1); predInput.Font = "GothamBold"; predInput.TextSize = 13
-local fovLabel = Instance.new("TextLabel", page1); fovLabel.Size = UDim2.new(1, -20, 0, 20); fovLabel.Position = UDim2.new(0, 10, 0, 370); fovLabel.BackgroundTransparency = 1; fovLabel.Text = "FOV: 90"; fovLabel.TextColor3 = Color3.new(1,1,1); fovLabel.TextSize = 14
-local fovSlider = Instance.new("Frame", page1); fovSlider.Size = UDim2.new(1, -20, 0, 10); fovSlider.Position = UDim2.new(0, 10, 0, 395); fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
-local fovFill = Instance.new("Frame", fovSlider); fovFill.Size = UDim2.new(fov/180, 0, 1, 0); fovFill.BackgroundColor3 = Color3.fromRGB(0,160,0)
+local toggle = Instance.new("TextButton", page1)
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 15)
+toggle.Text = "AIMBOT: ON"
+toggle.Font = Enum.Font.GothamBold
+toggle.TextSize = 16
+toggle.TextColor3 = Color3.fromRGB(255,255,255)
+toggle.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
+
+local dangerousBtn = Instance.new("TextButton", page1)
+dangerousBtn.Size = UDim2.new(1, -20, 0, 40)
+dangerousBtn.Position = UDim2.new(0, 10, 0, 60)
+dangerousBtn.Text = "FILTER DANGEROUS: OFF"
+dangerousBtn.Font = Enum.Font.GothamBold
+dangerousBtn.TextSize = 14
+dangerousBtn.TextColor3 = Color3.fromRGB(255,255,255)
+dangerousBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local innocentBtn = Instance.new("TextButton", page1)
+innocentBtn.Size = UDim2.new(1, -20, 0, 40)
+innocentBtn.Position = UDim2.new(0, 10, 0, 105)
+innocentBtn.Text = "FILTER INNOCENT: OFF"
+innocentBtn.Font = Enum.Font.GothamBold
+innocentBtn.TextSize = 14
+innocentBtn.TextColor3 = Color3.fromRGB(255,255,255)
+innocentBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local stunBtn = Instance.new("TextButton", page1)
+stunBtn.Size = UDim2.new(1, -20, 0, 40)
+stunBtn.Position = UDim2.new(0, 10, 0, 150)
+stunBtn.Text = "FILTER STUN & TASE: OFF"
+stunBtn.Font = Enum.Font.GothamBold
+stunBtn.TextSize = 14
+stunBtn.TextColor3 = Color3.fromRGB(255,255,255)
+stunBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local espBtn = Instance.new("TextButton", page1)
+espBtn.Size = UDim2.new(1, -20, 0, 40)
+espBtn.Position = UDim2.new(0, 10, 0, 195)
+espBtn.Text = "ESP DROPPED TOOLS: OFF"
+espBtn.Font = Enum.Font.GothamBold
+espBtn.TextSize = 14
+espBtn.TextColor3 = Color3.fromRGB(255,255,255)
+espBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local toolFastBtn = Instance.new("TextButton", page1)
+toolFastBtn.Size = UDim2.new(1, -20, 0, 40)
+toolFastBtn.Position = UDim2.new(0, 10, 0, 240)
+toolFastBtn.Text = "EXECUTE: GET TOOL FAST"
+toolFastBtn.Font = Enum.Font.GothamBold
+toolFastBtn.TextSize = 14
+toolFastBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toolFastBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+toolFastBtn.MouseButton1Click:Connect(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Get%20Tool%20Fast%20VPRP"))() end)
+
+local predBtn = Instance.new("TextButton", page1)
+predBtn.Size = UDim2.new(0.5, -15, 0, 30)
+predBtn.Position = UDim2.new(0, 10, 0, 290)
+predBtn.Text = "PREDICTION: OFF"
+predBtn.Font = Enum.Font.GothamBold
+predBtn.TextSize = 12
+predBtn.TextColor3 = Color3.fromRGB(255,255,255)
+predBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+local predInput = Instance.new("TextBox", page1)
+predInput.Size = UDim2.new(0.5, -15, 0, 30)
+predInput.Position = UDim2.new(0.5, 5, 0, 290)
+predInput.Text = "0"
+predInput.Font = Enum.Font.GothamBold
+predInput.TextSize = 12
+predInput.TextColor3 = Color3.fromRGB(255,255,255)
+predInput.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+local fovLabel = Instance.new("TextLabel", page1)
+fovLabel.Size = UDim2.new(1, -20, 0, 20)
+fovLabel.Position = UDim2.new(0, 10, 0, 370)
+fovLabel.BackgroundTransparency = 1
+fovLabel.Text = "FOV: 90"
+fovLabel.TextColor3 = Color3.fromRGB(255,255,255)
+
+local fovSlider = Instance.new("Frame", page1)
+fovSlider.Size = UDim2.new(1, -20, 0, 10)
+fovSlider.Position = UDim2.new(0, 10, 0, 395)
+fovSlider.BackgroundColor3 = Color3.fromRGB(80,80,80)
+local fovFill = Instance.new("Frame", fovSlider)
+fovFill.Size = UDim2.new(fov/180, 0, 1, 0)
+fovFill.BackgroundColor3 = Color3.fromRGB(0,160,0)
+
+local fpLabel = Instance.new("TextLabel", page1)
+fpLabel.Size = UDim2.new(1, -20, 0, 20)
+fpLabel.Position = UDim2.new(0, 10, 0, 420)
+fpLabel.BackgroundTransparency = 1
+fpLabel.Text = "First Person: OFF"
+fpLabel.TextColor3 = Color3.fromRGB(255,255,255)
 
 -- [[ PAGE 2 ELEMENTS ]]
-local cuffedToggle = Instance.new("TextButton", page2); cuffedToggle.Size = UDim2.new(1, -20, 0, 40); cuffedToggle.Position = UDim2.new(0, 10, 0, 15); cuffedToggle.Text = "FILTER CUFFED: OFF"; cuffedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60); cuffedToggle.Font = "GothamBold"; cuffedToggle.TextColor3 = Color3.new(1,1,1); cuffedToggle.TextSize = 14
-local detainedToggle = Instance.new("TextButton", page2); detainedToggle.Size = UDim2.new(1, -20, 0, 40); detainedToggle.Position = UDim2.new(0, 10, 0, 60); detainedToggle.Text = "FILTER DETAINED: OFF"; detainedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60); detainedToggle.Font = "GothamBold"; detainedToggle.TextColor3 = Color3.new(1,1,1); detainedToggle.TextSize = 14
-local fpCheckBtn = Instance.new("TextButton", page2); fpCheckBtn.Size = UDim2.new(1, -20, 0, 40); fpCheckBtn.Position = UDim2.new(0, 10, 0, 105); fpCheckBtn.Text = "CHECK FIRST PERSON: ON"; fpCheckBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 0); fpCheckBtn.Font = "GothamBold"; fpCheckBtn.TextColor3 = Color3.new(1,1,1); fpCheckBtn.TextSize = 14
-local innocentEspBtn = Instance.new("TextButton", page2); innocentEspBtn.Size = UDim2.new(1, -20, 0, 40); innocentEspBtn.Position = UDim2.new(0, 10, 0, 150); innocentEspBtn.Text = "ESP INNOCENT: OFF"; innocentEspBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); innocentEspBtn.Font = "GothamBold"; innocentEspBtn.TextColor3 = Color3.new(1,1,1); innocentEspBtn.TextSize = 14
+local cuffedToggle = Instance.new("TextButton", page2)
+cuffedToggle.Size = UDim2.new(1, -20, 0, 40)
+cuffedToggle.Position = UDim2.new(0, 10, 0, 15)
+cuffedToggle.Text = "FILTER CUFFED: OFF"
+cuffedToggle.Font = Enum.Font.GothamBold
+cuffedToggle.TextColor3 = Color3.new(1,1,1)
+cuffedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
--- [[ LOGIC NÚT BẤM ]]
-nextPage.MouseButton1Click:Connect(function() 
-    page1.Visible = not page1.Visible 
-    page2.Visible = not page1.Visible 
-    nextPage.Text = page1.Visible and ">" or "<" 
+local detainedToggle = Instance.new("TextButton", page2)
+detainedToggle.Size = UDim2.new(1, -20, 0, 40)
+detainedToggle.Position = UDim2.new(0, 10, 0, 60)
+detainedToggle.Text = "FILTER DETAINED: OFF"
+detainedToggle.Font = Enum.Font.GothamBold
+detainedToggle.TextColor3 = Color3.new(1,1,1)
+detainedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+
+-- NÚT MỚI THÊM (ĐOẠN CODE 1 BẠN CẦN)
+local fpCheckBtn = Instance.new("TextButton", page2)
+fpCheckBtn.Size = UDim2.new(1, -20, 0, 40)
+fpCheckBtn.Position = UDim2.new(0, 10, 0, 105)
+fpCheckBtn.Text = "CHECK FIRST PERSON: ON"
+fpCheckBtn.Font = Enum.Font.GothamBold
+fpCheckBtn.TextSize = 14
+fpCheckBtn.TextColor3 = Color3.fromRGB(255,255,255)
+fpCheckBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
+
+fpCheckBtn.MouseButton1Click:Connect(function()
+    checkFirstPerson = not checkFirstPerson
+    fpCheckBtn.Text = checkFirstPerson and "CHECK FIRST PERSON: ON" or "CHECK FIRST PERSON: OFF"
+    fpCheckBtn.BackgroundColor3 = checkFirstPerson and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
 end)
 
-minimize.MouseButton1Click:Connect(function() 
-    minimized = not minimized 
-    frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 600) 
-    nextPage.Visible = not minimized 
-    page1.Visible = not minimized and (nextPage.Text == ">") 
-    page2.Visible = not minimized and (nextPage.Text == "<") 
-    minimize.Text = minimized and "+" or "-" 
-end)
-
-toggle.MouseButton1Click:Connect(function() aimingEnabled = not aimingEnabled toggle.Text = aimingEnabled and "AIMBOT: ON" or "AIMBOT: OFF" toggle.BackgroundColor3 = aimingEnabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0) end)
-dangerousBtn.MouseButton1Click:Connect(function() filterDangerous = not filterDangerous dangerousBtn.Text = filterDangerous and "FILTER DANGEROUS: ON" or "FILTER DANGEROUS: OFF" dangerousBtn.BackgroundColor3 = filterDangerous and Color3.fromRGB(200, 120, 0) or Color3.fromRGB(60, 60, 60) end)
-innocentBtn.MouseButton1Click:Connect(function() filterInnocent = not filterInnocent innocentBtn.Text = filterInnocent and "FILTER INNOCENT: ON" or "FILTER INNOCENT: OFF" innocentBtn.BackgroundColor3 = filterInnocent and Color3.fromRGB(160, 0, 160) or Color3.fromRGB(60, 60, 60) end)
-stunBtn.MouseButton1Click:Connect(function() filterStunTase = not filterStunTase stunBtn.Text = filterStunTase and "FILTER STUN & TASE: ON" or "FILTER STUN & TASE: OFF" stunBtn.BackgroundColor3 = filterStunTase and Color3.fromRGB(255, 0, 100) or Color3.fromRGB(60, 60, 60) end)
-espBtn.MouseButton1Click:Connect(function() espToolsEnabled = not espToolsEnabled espBtn.Text = espToolsEnabled and "ESP TOOLS: ON" or "ESP TOOLS: OFF" espBtn.BackgroundColor3 = espToolsEnabled and Color3.fromRGB(0, 160, 160) or Color3.fromRGB(60, 60, 60) end)
-predBtn.MouseButton1Click:Connect(function() predictionEnabled = not predictionEnabled predBtn.Text = predictionEnabled and "PREDICTION: ON" or "PREDICTION: OFF" predBtn.BackgroundColor3 = predictionEnabled and Color3.fromRGB(150, 0, 200) or Color3.fromRGB(60, 60, 60) end)
-predInput.FocusLost:Connect(function() predStrength = tonumber(predInput.Text) or 0 end)
-toolFastBtn.MouseButton1Click:Connect(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Get%20Tool%20Fast%20VPRP"))() end)
-fpCheckBtn.MouseButton1Click:Connect(function() checkFirstPerson = not checkFirstPerson fpCheckBtn.Text = checkFirstPerson and "CHECK FIRST PERSON: ON" or "CHECK FIRST PERSON: OFF" fpCheckBtn.BackgroundColor3 = checkFirstPerson and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0) end)
-cuffedToggle.MouseButton1Click:Connect(function() filterCuffed = not filterCuffed cuffedToggle.Text = filterCuffed and "FILTER CUFFED: ON" or "FILTER CUFFED: OFF" cuffedToggle.BackgroundColor3 = filterCuffed and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(60, 60, 60) end)
-detainedToggle.MouseButton1Click:Connect(function() filterDetained = not filterDetained detainedToggle.Text = filterDetained and "FILTER DETAINED: ON" or "FILTER DETAINED: OFF" detainedToggle.BackgroundColor3 = filterDetained and Color3.fromRGB(100, 0, 200) or Color3.fromRGB(60, 60, 60) end)
-innocentEspBtn.MouseButton1Click:Connect(function()
-    espInnocentEnabled = not espInnocentEnabled
-    innocentEspBtn.Text = espInnocentEnabled and "ESP INNOCENT: ON" or "ESP INNOCENT: OFF"
-    innocentEspBtn.BackgroundColor3 = espInnocentEnabled and Color3.fromRGB(0,170,255) or Color3.fromRGB(60,60,60)
-end)
-
--- FOV Slider Logic
+-- [[ LOGIC CHUNG ]]
 local dragging = false
 fovSlider.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end end)
 fovSlider.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
@@ -257,45 +390,54 @@ UserInputService.InputChanged:Connect(function(input)
         fov = 30 + (pos / fovSlider.AbsoluteSize.X) * 150
         fovLabel.Text = "FOV: "..math.floor(fov)
         fovFill.Size = UDim2.new(pos / fovSlider.AbsoluteSize.X, 0, 1, 0)
-        FOVring.Radius = fov
     end
 end)
 
--- [[ MAIN RENDER LOOP ]]
-RunService:BindToRenderStep("AimbotUpdate", 201, function()
-    FOVring.Position = Cam.ViewportSize / 2
+minimize.MouseButton1Click:Connect(function() minimized = not minimized frame.Size = minimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 600) nextPage.Visible = not minimized page1.Visible = not minimized and (nextPage.Text == ">") page2.Visible = not minimized and (nextPage.Text == "<") minimize.Text = minimized and "+" or "-" end)
+toggle.MouseButton1Click:Connect(function() aimingEnabled = not aimingEnabled toggle.Text = aimingEnabled and "AIMBOT: ON" or "AIMBOT: OFF" toggle.BackgroundColor3 = aimingEnabled and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0) end)
+dangerousBtn.MouseButton1Click:Connect(function() filterDangerous = not filterDangerous dangerousBtn.Text = filterDangerous and "FILTER DANGEROUS: ON" or "FILTER DANGEROUS: OFF" dangerousBtn.BackgroundColor3 = filterDangerous and Color3.fromRGB(200, 120, 0) or Color3.fromRGB(60, 60, 60) end)
+innocentBtn.MouseButton1Click:Connect(function() filterInnocent = not filterInnocent innocentBtn.Text = filterInnocent and "FILTER INNOCENT: ON" or "FILTER INNOCENT: OFF" innocentBtn.BackgroundColor3 = filterInnocent and Color3.fromRGB(160, 0, 160) or Color3.fromRGB(60, 60, 60) end)
+stunBtn.MouseButton1Click:Connect(function() filterStunTase = not filterStunTase stunBtn.Text = filterStunTase and "FILTER STUN & TASE: ON" or "FILTER STUN & TASE: OFF" stunBtn.BackgroundColor3 = filterStunTase and Color3.fromRGB(255, 0, 100) or Color3.fromRGB(60, 60, 60) end)
+cuffedToggle.MouseButton1Click:Connect(function() filterCuffed = not filterCuffed cuffedToggle.Text = filterCuffed and "FILTER CUFFED: ON" or "FILTER CUFFED: OFF" cuffedToggle.BackgroundColor3 = filterCuffed and Color3.fromRGB(0, 120, 200) or Color3.fromRGB(60, 60, 60) end)
+detainedToggle.MouseButton1Click:Connect(function() filterDetained = not filterDetained detainedToggle.Text = filterDetained and "FILTER DETAINED: ON" or "FILTER DETAINED: OFF" detainedToggle.BackgroundColor3 = filterDetained and Color3.fromRGB(100, 0, 200) or Color3.fromRGB(60, 60, 60) end)
+espBtn.MouseButton1Click:Connect(function() espToolsEnabled = not espToolsEnabled espBtn.Text = espToolsEnabled and "ESP DROPPED TOOLS: ON" or "ESP DROPPED TOOLS: OFF" espBtn.BackgroundColor3 = espToolsEnabled and Color3.fromRGB(0, 160, 160) or Color3.fromRGB(60, 60, 60) refreshToolEsp() end)
+predBtn.MouseButton1Click:Connect(function() predictionEnabled = not predictionEnabled predBtn.Text = predictionEnabled and "PREDICTION: ON" or "PREDICTION: OFF" predBtn.BackgroundColor3 = predictionEnabled and Color3.fromRGB(150, 0, 200) or Color3.fromRGB(60, 60, 60) end)
+predInput.FocusLost:Connect(function() local num = tonumber(predInput.Text) if num then predStrength = math.clamp(num, 0, 100) else predStrength = 0 end predInput.Text = tostring(predStrength) end)
+
+-- [[ RENDER LOOP UPDATED (ĐOẠN CODE 2 BẠN CẦN) ]]
+RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+    updateDrawings()
+    if not aimingEnabled or not LocalPlayer.Character then return end
+    local head = LocalPlayer.Character:FindFirstChild("Head")
+    if not head then return end
     
-    -- Innocent ESP
-    if espInnocentEnabled then
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.TeamColor and allowedEspTeams[plr.TeamColor.Name] then
-                createInnocentEsp(plr)
-            end
-        end
-    else
-        innocentEspFolder:ClearAllChildren()
-    end
-
-    -- Aimbot
-    if not aimingEnabled or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Head") then return end
-    local isFP = (Cam.CFrame.Position - LocalPlayer.Character.Head.Position).Magnitude <= 1
+    local isFP = (Cam.CFrame.Position - head.Position).Magnitude <= 1
+    fpLabel.Text = isFP and "First Person: ON" or "First Person: OFF"
+    
+    -- Logic mới: Nếu check FP bật mà không ở FP thì không ngắm. Nếu tắt thì ngắm thoải mái.
     if checkFirstPerson and not isFP then return end
-
+    
     local target = getClosestEnemyInFOV()
-    if target and target.Character and target.Character:FindFirstChild("Head") then
-        local aimPos = target.Character.Head.Position
-        if predictionEnabled and target.Character:FindFirstChild("HumanoidRootPart") then
-            aimPos = aimPos + (target.Character.HumanoidRootPart.Velocity * (predStrength / 10))
+    if target and target.Character then
+        local tHead = target.Character:FindFirstChild("Head")
+        local tHrp = target.Character:FindFirstChild("HumanoidRootPart")
+        if tHead and tHrp then
+            local aimPosition = tHead.Position
+            if predictionEnabled and predStrength > 0 then
+                local velocity = tHrp.Velocity
+                if velocity.Magnitude > 1 then aimPosition = aimPosition + (velocity.Unit * (predStrength * 0.5)) end
+            end
+            lookAt(aimPosition)
         end
-        Cam.CFrame = CFrame.new(Cam.CFrame.Position, aimPos)
     end
 end)
 
--- CLEANUP
-UserInputService.InputBegan:Connect(function(i, g)
-    if not g and i.KeyCode == Enum.KeyCode.Delete then
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Delete then
         RunService:UnbindFromRenderStep("AimbotUpdate")
-        FOVring:Remove(); gui:Destroy(); toolEspFolder:Destroy(); innocentEspFolder:Destroy()
+        FOVring:Remove()
+        gui:Destroy()
+        toolEspFolder:Destroy()
     end
 end)
  

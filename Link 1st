@@ -1,0 +1,174 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "TSS Script - NoneUserHub",
+   LoadingTitle = "Loading",
+   LoadingSubtitle = "Made by NoneUsername0813",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "NoneUserHub",
+      FileName = "TSSConfig"
+   },
+   KeySystem = false
+})
+
+-- Biến điều khiển toàn cục
+getgenv().AutoCollect = false
+getgenv().AutoCrown = false
+getgenv().AutoCombat = false
+getgenv().WS_Value = 16
+getgenv().JP_Value = 50
+
+-- Hàm Teleport an toàn
+local function SafeTP(pos)
+    local char = game.Players.LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(pos)
+    end
+end
+
+-- --- TAB MAIN ---
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+-- 1. Auto Collect Drops (Updated with No Collision)
+MainTab:CreateToggle({
+   Name = "Auto Collect Drops",
+   CurrentValue = false,
+   Flag = "CollectFlag",
+   Callback = function(Value)
+      getgenv().AutoCollect = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoCollect do
+               local char = game.Players.LocalPlayer.Character
+               if char and char:FindFirstChild("Head") then
+                  local worlds = {"World1", "World2", "World3", "World4", "World5", "World6", "World7", "World8", "World9"}
+                  for _, wName in pairs(worlds) do
+                     local folder = workspace:FindFirstChild("Add") and workspace.Add:FindFirstChild(wName)
+                     if folder then
+                        for _, item in pairs(folder:GetChildren()) do
+                           if item:IsA("BasePart") then
+                              item.CanCollide = false -- Tắt va chạm để tránh văng nhân vật
+                              item.CFrame = char.Head.CFrame
+                           end
+                        end
+                     end
+                  end
+               end
+               task.wait(0.5)
+            end
+         end)
+      end
+   end,
+})
+
+-- 2. Auto Get Crown (Tp)
+MainTab:CreateToggle({
+   Name = "Auto Get Crown (Tp)",
+   CurrentValue = false,
+   Flag = "CrownFlag",
+   Callback = function(Value)
+      getgenv().AutoCrown = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoCrown do
+               SafeTP(Vector3.new(-11, 5, -152))
+               task.wait(0.5)
+            end
+         end)
+      end
+   end,
+})
+
+-- 3. Auto Combat
+MainTab:CreateToggle({
+   Name = "Auto Combat",
+   CurrentValue = false,
+   Flag = "CombatFlag",
+   Callback = function(Value)
+      getgenv().AutoCombat = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoCombat do
+               local char = game.Players.LocalPlayer.Character
+               if char and char:FindFirstChild("Combat") then
+                  local args = { game.Players.LocalPlayer } -- Tự động lấy chính bạn
+                  char.Combat.RemoteUse:FireServer(unpack(args))
+               end
+               task.wait(0.1) -- Tốc độ đánh nhanh
+            end
+         end)
+      end
+   end,
+})
+
+-- --- TAB TELEPORT ---
+local TPTab = Window:CreateTab("Teleport", 4483362458)
+
+local locations = {
+    ["World 1"] = Vector3.new(-13, 4, -82),
+    ["World 2"] = Vector3.new(294, 4, -84),
+    ["World 3"] = Vector3.new(-53, 5, 269),
+    ["World 4"] = Vector3.new(282, 4, 272),
+    ["World 5"] = Vector3.new(0, 4, -364),
+    ["World 6"] = Vector3.new(-318, 49, -46),
+    ["World 7"] = Vector3.new(-236, 84, -352),
+    ["World 8"] = Vector3.new(-549, 151, -310),
+    ["World 9"] = Vector3.new(217, 74, -608),
+}
+
+for name, pos in pairs(locations) do
+    TPTab:CreateButton({
+       Name = "Teleport to "..name,
+       Callback = function() SafeTP(pos) end,
+    })
+end
+
+-- --- TAB PLAYERS ---
+local PlayerTab = Window:CreateTab("Players", 4483362458)
+
+PlayerTab:CreateSlider({
+   Name = "Walkspeed",
+   Range = {1, 125},
+   Increment = 1,
+   Suffix = "Speed",
+   CurrentValue = 16,
+   Flag = "WS_Slider",
+   Callback = function(Value) getgenv().WS_Value = Value end,
+})
+
+PlayerTab:CreateSlider({
+   Name = "Jumppower",
+   Range = {1, 150},
+   Increment = 1,
+   Suffix = "Power",
+   CurrentValue = 50,
+   Flag = "JP_Slider",
+   Callback = function(Value)
+      getgenv().JP_Value = Value
+      local char = game.Players.LocalPlayer.Character
+      if char and char:FindFirstChildOfClass("Humanoid") then
+         char.Humanoid.JumpPower = Value
+      end
+   end,
+})
+
+-- Loop để giữ chỉ số không bị Reset khi Respawn
+task.spawn(function()
+    while true do
+        local char = game.Players.LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = getgenv().WS_Value
+            hum.JumpPower = getgenv().JP_Value
+        end
+        task.wait(0.5)
+    end
+end)
+
+Rayfield:Notify({
+   Title = "Credits",
+   Content = "Tiktok: Delta_user.1 / Scriptblox: NoneUser",
+   Duration = 5,
+   Image = 4483362458,
+})

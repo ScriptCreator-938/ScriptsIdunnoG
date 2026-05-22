@@ -32,15 +32,16 @@ StarterGui:SetCore("SendNotification", {
 -- [[ SETTINGS ]]
 local fov = 90
 local aimingEnabled = true
-local filterDangerous = false
+local filterDangerous = false 
 local filterInnocent = false 
-local filterStunTase = false 
-local filterCuffed = false 
+local filterStunTase = true 
+local filterCuffed = true 
 local filterDetained = false 
-local espToolsEnabled = false 
-local predictionEnabled = false 
-local predStrength = 0 
-local checkFirstPerson = true -- BIẾN MỚI THÊM VÀO (RuleSC)
+local espToolsEnabled = true 
+local predictionEnabled = true 
+local predStrength = 1 
+local checkFirstPerson = true
+local advancedWallcheck = true -- BIẾN MỚI CHO ADVANCED WALLCHECK
 
 -- CẬP NHẬT DANH SÁCH DANGEROUS TOOLS
 local dangerousItems = {
@@ -174,29 +175,72 @@ local function isCuffedOrDetained(player)
     return false
 end
 
+-- Hàm kiểm tra xem một bộ phận cụ thể có bị che khuất bởi tường hay không
+local function isPartVisible(char, part)
+    if not part then return false end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
+    local res = workspace:Raycast(Cam.CFrame.Position, part.Position - Cam.CFrame.Position, params)
+    if not res or res.Instance:IsDescendantOf(char) then
+        return true
+    end
+    return false
+end
+
 local function getClosestEnemyInFOV()
     local closest, closestDist = nil, math.huge
     local screenCenter = Cam.ViewportSize / 2
+    local activeTargetPart = nil -- Lưu lại bộ phận không bị che để truyền ra ngoài
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             if not isEnemy(player) or (filterDangerous and not isDangerous(player)) or (filterInnocent and not isNotInnocent(player)) or (filterStunTase and isStunnedOrTased(player)) or isCuffedOrDetained(player) then continue end
             local char = player.Character
             if not char or not char:FindFirstChild("Humanoid") or char.Humanoid.Health <= 0 then continue end
+            
             local head = char:FindFirstChild("Head")
             if head then
                 local pos, onScreen = Cam:WorldToViewportPoint(head.Position)
                 local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
                 if onScreen and dist < fov and dist < closestDist then
-                    local params = RaycastParams.new()
-                    params.FilterType = Enum.RaycastFilterType.Blacklist
-                    params.FilterDescendantsInstances = {LocalPlayer.Character, char}
-                    local res = workspace:Raycast(Cam.CFrame.Position, head.Position - Cam.CFrame.Position, params)
-                    if not res or res.Instance:IsDescendantOf(char) then closestDist = dist closest = player end
+                    
+                    local selectedPart = nil
+                    
+                    -- Thực hiện Advanced Wallcheck quét qua từng bộ phận cơ thể
+                    if advancedWallcheck then
+                        local partsToScan = {
+                            char:FindFirstChild("Head"),
+                            char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso"),
+                            char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftUpperArm"),
+                            char:FindFirstChild("Right Arm") or char:FindFirstChild("RightUpperArm"),
+                            char:FindFirstChild("Left Leg") or char:FindFirstChild("LeftLowerLeg"),
+                            char:FindFirstChild("Right Leg") or char:FindFirstChild("RightLowerLeg")
+                        }
+                        
+                        for _, part in ipairs(partsToScan) do
+                            if part and isPartVisible(char, part) then
+                                selectedPart = part
+                                break -- Tìm thấy bộ phận lộ ra đầu tiên là khóa luôn
+                            end
+                        end
+                    else
+                        -- Wallcheck cơ bản chỉ kiểm tra Head
+                        if isPartVisible(char, head) then
+                            selectedPart = head
+                        end
+                    end
+                    
+                    if selectedPart then
+                        closestDist = dist
+                        closest = player
+                        activeTargetPart = selectedPart
+                    end
                 end
             end
         end
     end
-    return closest
+    return closest, activeTargetPart
 end
 
 -- [[ GUI ]]
@@ -364,7 +408,6 @@ detainedToggle.Font = Enum.Font.GothamBold
 detainedToggle.TextColor3 = Color3.new(1,1,1)
 detainedToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 
--- NÚT MỚI THÊM (ĐOẠN CODE 1 BẠN CẦN)
 local fpCheckBtn = Instance.new("TextButton", page2)
 fpCheckBtn.Size = UDim2.new(1, -20, 0, 40)
 fpCheckBtn.Position = UDim2.new(0, 10, 0, 105)
@@ -378,6 +421,22 @@ fpCheckBtn.MouseButton1Click:Connect(function()
     checkFirstPerson = not checkFirstPerson
     fpCheckBtn.Text = checkFirstPerson and "CHECK FIRST PERSON: ON" or "CHECK FIRST PERSON: OFF"
     fpCheckBtn.BackgroundColor3 = checkFirstPerson and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
+end)
+
+-- NÚT MỚI: ADVANCED WALLCHECK (Thêm vào Page 2 dưới nút Check FP)
+local wallcheckBtn = Instance.new("TextButton", page2)
+wallcheckBtn.Size = UDim2.new(1, -20, 0, 40)
+wallcheckBtn.Position = UDim2.new(0, 10, 0, 150)
+wallcheckBtn.Text = "ADVANCED WALLCHECK: ON"
+wallcheckBtn.Font = Enum.Font.GothamBold
+wallcheckBtn.TextSize = 14
+wallcheckBtn.TextColor3 = Color3.fromRGB(255,255,255)
+wallcheckBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 0)
+
+wallcheckBtn.MouseButton1Click:Connect(function()
+    advancedWallcheck = not advancedWallcheck
+    wallcheckBtn.Text = advancedWallcheck and "ADVANCED WALLCHECK: ON" or "ADVANCED WALLCHECK: OFF"
+    wallcheckBtn.BackgroundColor3 = advancedWallcheck and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(160, 0, 0)
 end)
 
 -- [[ LOGIC CHUNG ]]
@@ -404,25 +463,24 @@ espBtn.MouseButton1Click:Connect(function() espToolsEnabled = not espToolsEnable
 predBtn.MouseButton1Click:Connect(function() predictionEnabled = not predictionEnabled predBtn.Text = predictionEnabled and "PREDICTION: ON" or "PREDICTION: OFF" predBtn.BackgroundColor3 = predictionEnabled and Color3.fromRGB(150, 0, 200) or Color3.fromRGB(60, 60, 60) end)
 predInput.FocusLost:Connect(function() local num = tonumber(predInput.Text) if num then predStrength = math.clamp(num, 0, 100) else predStrength = 0 end predInput.Text = tostring(predStrength) end)
 
--- [[ RENDER LOOP UPDATED (ĐOẠN CODE 2 BẠN CẦN) ]]
+-- [[ RENDER LOOP UPDATED ]]
 RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
     updateDrawings()
     if not aimingEnabled or not LocalPlayer.Character then return end
     local head = LocalPlayer.Character:FindFirstChild("Head")
     if not head then return end
-    
+
     local isFP = (Cam.CFrame.Position - head.Position).Magnitude <= 1
     fpLabel.Text = isFP and "First Person: ON" or "First Person: OFF"
-    
-    -- Logic mới: Nếu check FP bật mà không ở FP thì không ngắm. Nếu tắt thì ngắm thoải mái.
+
     if checkFirstPerson and not isFP then return end
-    
-    local target = getClosestEnemyInFOV()
-    if target and target.Character then
-        local tHead = target.Character:FindFirstChild("Head")
+
+    -- Gọi hàm và lấy về mục tiêu kèm bộ phận không bị che khuất
+    local target, targetPart = getClosestEnemyInFOV()
+    if target and target.Character and targetPart then
         local tHrp = target.Character:FindFirstChild("HumanoidRootPart")
-        if tHead and tHrp then
-            local aimPosition = tHead.Position
+        if tHrp then
+            local aimPosition = targetPart.Position
             if predictionEnabled and predStrength > 0 then
                 local velocity = tHrp.Velocity
                 if velocity.Magnitude > 1 then aimPosition = aimPosition + (velocity.Unit * (predStrength * 0.5)) end
@@ -440,4 +498,3 @@ UserInputService.InputBegan:Connect(function(input, gpe)
         toolEspFolder:Destroy()
     end
 end)
- 

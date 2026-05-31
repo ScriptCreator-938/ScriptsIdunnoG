@@ -17,6 +17,7 @@ getgenv().AutoCollect = false
 getgenv().AutoCrown = false
 getgenv().AutoCombat = false
 getgenv().AutoSolution = false 
+getgenv().HideAnswer = false    -- Biến điều khiển ẩn câu trả lời
 getgenv().DelayMin = 0.5        
 getgenv().DelayMax = 1.0        
 
@@ -112,6 +113,16 @@ MainTab:CreateSection("— Auto Solution ChatQuest —")
 
 local SolutionLabel = MainTab:CreateLabel("Last Math: None | Reward: None")
 
+-- Nút On Off Hide Answer
+MainTab:CreateToggle({
+   Name = "Hide Answer",
+   CurrentValue = false,
+   Flag = "HideAnswerFlag",
+   Callback = function(Value)
+      getgenv().HideAnswer = Value
+   end,
+})
+
 MainTab:CreateInput({
    Name = "Delay Answer Min",
    PlaceholderText = "Default: 0.5",
@@ -151,13 +162,19 @@ local function solveAndAnswer(messageText)
                 
                 SolutionLabel:Set(string.format("%s = %s | Reward: %s", cleanExpression, response, rewardText))
                 
+                -- Logic xử lý ẩn câu trả lời bằng cách thêm tiền tố /e
+                local finalOutput = response
+                if getgenv().HideAnswer then
+                    finalOutput = "/e " .. response
+                end
+                
                 local TextChatService = game:GetService("TextChatService")
                 local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
                 if generalChannel then
                     local randomDelay = math.random(getgenv().DelayMin * 1000, getgenv().DelayMax * 1000) / 1000
                     task.wait(randomDelay)
                     if getgenv().AutoSolution then
-                        generalChannel:SendAsync(response)
+                        generalChannel:SendAsync(finalOutput)
                     end
                 end
             end
@@ -165,20 +182,17 @@ local function solveAndAnswer(messageText)
     end
 end
 
--- Lắng nghe chat và chặn lặp lại tin nhắn từ chính mình
 local TextChatService = game:GetService("TextChatService")
-local Players = game:GetService("Players")
-
 for _, channel in ipairs(TextChatService.TextChannels:GetChildren()) do
     channel.MessageReceived:Connect(function(textChatMessage)
-        -- Chỉ xử lý nếu có nội dung chat và người gửi KHÔNG phải bạn
-        if textChatMessage.Text and textChatMessage.TextSource and textChatMessage.TextSource.UserId ~= Players.LocalPlayer.UserId then
+        if textChatMessage.Text then
             solveAndAnswer(textChatMessage.Text)
         end
     end)
 end
 
 local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
 local addFolder = Workspace:FindFirstChild("Add")
 
 if addFolder then
@@ -276,7 +290,7 @@ end)
 
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v0.9.5 BETA Cleaned",
+   Content = "Version: v0.9.3 BETA Loaded with Hide Answer Feature",
    Duration = 5,
    Image = 4483362458,
 })

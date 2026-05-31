@@ -12,14 +12,19 @@ local Window = Rayfield:CreateWindow({
    KeySystem = false
 })
 
--- Biến điều khiển toàn cục
+-- --- BIẾN ĐIỀU KHIỂN TOÀN CỤC ---
 getgenv().AutoCollect = false
 getgenv().AutoCrown = false
 getgenv().AutoCombat = false
-getgenv().WS_Value = 16
-getgenv().JP_Value = 50
+getgenv().AutoSolution = false 
+getgenv().DelayMin = 0.5        
+getgenv().DelayMax = 1.0        
 
--- Hàm Teleport an toàn
+-- Các biến chỉ số Player (Mặc định bằng nil để kiểm tra xem người dùng đã kéo chưa)
+getgenv().WS_Value = nil
+getgenv().JP_Value = nil
+
+-- --- HÀM HỖ TRỢ ---
 local function SafeTP(pos)
     local char = game.Players.LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -30,7 +35,7 @@ end
 -- --- TAB MAIN ---
 local MainTab = Window:CreateTab("Main", 4483362458)
 
--- 1. Auto Collect Drops (Updated with No Collision)
+-- 1. Auto Collect Drops
 MainTab:CreateToggle({
    Name = "Auto Collect Drops",
    CurrentValue = false,
@@ -48,7 +53,7 @@ MainTab:CreateToggle({
                      if folder then
                         for _, item in pairs(folder:GetChildren()) do
                            if item:IsA("BasePart") then
-                              item.CanCollide = false -- Tắt va chạm để tránh văng nhân vật
+                              item.CanCollide = false
                               item.CFrame = char.Head.CFrame
                            end
                         end
@@ -92,13 +97,109 @@ MainTab:CreateToggle({
             while getgenv().AutoCombat do
                local char = game.Players.LocalPlayer.Character
                if char and char:FindFirstChild("Combat") then
-                  local args = { game.Players.LocalPlayer } -- Tự động lấy chính bạn
+                  local args = { game.Players.LocalPlayer }
                   char.Combat.RemoteUse:FireServer(unpack(args))
                end
-               task.wait(0.1) -- Tốc độ đánh nhanh
+               task.wait(0.1)
             end
          end)
       end
+   end,
+})
+
+-- --- AUTO SOLUTION CHATQUEST ---
+MainTab:CreateSection("— Auto Solution ChatQuest —")
+
+local SolutionLabel = MainTab:CreateLabel("Last Math: None | Reward: None")
+
+MainTab:CreateInput({
+   Name = "Delay Answer Min",
+   PlaceholderText = "Default: 0.5",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      if num then getgenv().DelayMin = num end
+   end,
+})
+
+MainTab:CreateInput({
+   Name = "Delay Answer Max",
+   PlaceholderText = "Default: 1.0",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      if num then getgenv().DelayMax = num end
+   end,
+})
+
+local function solveAndAnswer(messageText)
+    if not getgenv().AutoSolution then return end
+    
+    local mathExpression = string.match(messageText, "What is%s+(.-)%s*%?")
+    local rewardText = string.match(messageText, "you get:%s*(.*)") or "Unknown"
+    
+    if mathExpression then
+        local cleanExpression = string.gsub(mathExpression, "[^%d%+%-%*%/%^%.%s]", "")
+        local func = loadstring("return " .. cleanExpression)
+        if func then
+            local success, result = pcall(func)
+            if success and result then
+                local response = string.format("%.1f", result)
+                if response:sub(-2) == ".0" then
+                    response = string.format("%d", result)
+                end
+                
+                SolutionLabel:Set(string.format("%s = %s | Reward: %s", cleanExpression, response, rewardText))
+                
+                local TextChatService = game:GetService("TextChatService")
+                local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
+                if generalChannel then
+                    local randomDelay = math.random(getgenv().DelayMin * 1000, getgenv().DelayMax * 1000) / 1000
+                    task.wait(randomDelay)
+                    if getgenv().AutoSolution then
+                        generalChannel:SendAsync(response)
+                    end
+                end
+            end
+        end
+    end
+end
+
+local TextChatService = game:GetService("TextChatService")
+for _, channel in ipairs(TextChatService.TextChannels:GetChildren()) do
+    channel.MessageReceived:Connect(function(textChatMessage)
+        if textChatMessage.Text then
+            solveAndAnswer(textChatMessage.Text)
+        end
+    end)
+end
+
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local addFolder = Workspace:FindFirstChild("Add")
+
+if addFolder then
+    addFolder.DescendantAdded:Connect(function(upg)
+        if getgenv().AutoSolution and upg:IsA("BasePart") and upg:FindFirstChild("TouchInterest") then
+            local char = Players.LocalPlayer.Character
+            if char then
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    firetouchinterest(hrp, upg, 0)
+                    task.wait(0.1)
+                    firetouchinterest(hrp, upg, 1)
+                end
+            end
+        end
+    end)
+end
+
+MainTab:CreateToggle({
+   Name = "Auto Solution",
+   CurrentValue = false,
+   Flag = "SolutionFlag",
+   Callback = function(Value)
+      getgenv().AutoSolution = Value
    end,
 })
 
@@ -117,10 +218,12 @@ local locations = {
     ["World 9"] = Vector3.new(217, 74, -608),
 }
 
-for name, pos in pairs(locations) do
+local sortedWorlds = {"World 1", "World 2", "World 3", "World 4", "World 5", "World 6", "World 7", "World 8", "World 9"}
+
+for _, name in ipairs(sortedWorlds) do
     TPTab:CreateButton({
        Name = "Teleport to "..name,
-       Callback = function() SafeTP(pos) end,
+       Callback = function() SafeTP(locations[name]) end,
     })
 end
 
@@ -134,7 +237,9 @@ PlayerTab:CreateSlider({
    Suffix = "Speed",
    CurrentValue = 16,
    Flag = "WS_Slider",
-   Callback = function(Value) getgenv().WS_Value = Value end,
+   Callback = function(Value) 
+      getgenv().WS_Value = Value -- Chỉ gán giá trị khi người chơi tương tác thanh kéo
+   end,
 })
 
 PlayerTab:CreateSlider({
@@ -145,30 +250,30 @@ PlayerTab:CreateSlider({
    CurrentValue = 50,
    Flag = "JP_Slider",
    Callback = function(Value)
-      getgenv().JP_Value = Value
-      local char = game.Players.LocalPlayer.Character
-      if char and char:FindFirstChildOfClass("Humanoid") then
-         char.Humanoid.JumpPower = Value
-      end
+      getgenv().JP_Value = Value -- Chỉ gán giá trị khi người chơi tương tác thanh kéo
    end,
 })
 
--- Loop để giữ chỉ số không bị Reset khi Respawn
+-- Loop thông minh: Chỉ ghi đè chỉ số nếu biến không còn là nil
 task.spawn(function()
     while true do
         local char = game.Players.LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         if hum then
-            hum.WalkSpeed = getgenv().WS_Value
-            hum.JumpPower = getgenv().JP_Value
+            if getgenv().WS_Value ~= nil then
+                hum.WalkSpeed = getgenv().WS_Value
+            end
+            if getgenv().JP_Value ~= nil then
+                hum.JumpPower = getgenv().JP_Value
+            end
         end
         task.wait(0.5)
     end
 end)
 
 Rayfield:Notify({
-   Title = "Credits",
-   Content = "Tiktok: Delta_user.1 / Scriptblox: NoneUser",
+   Title = "Update Success!",
+   Content = "Version: v0.9.1 BETA Fixed Stats",
    Duration = 5,
    Image = 4483362458,
 })

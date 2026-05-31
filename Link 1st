@@ -20,7 +20,7 @@ getgenv().AutoSolution = false
 getgenv().DelayMin = 0.5        
 getgenv().DelayMax = 1.0        
 
--- Các biến chỉ số Player (Mặc định bằng nil để kiểm tra xem người dùng đã kéo chưa)
+-- Các biến chỉ số Player
 getgenv().WS_Value = nil
 getgenv().JP_Value = nil
 
@@ -60,7 +60,7 @@ MainTab:CreateToggle({
                      end
                   end
                end
-               task.wait(0.5)
+               task.wait(0.05)
             end
          end)
       end
@@ -165,17 +165,20 @@ local function solveAndAnswer(messageText)
     end
 end
 
+-- Lắng nghe chat và chặn lặp lại tin nhắn từ chính mình
 local TextChatService = game:GetService("TextChatService")
+local Players = game:GetService("Players")
+
 for _, channel in ipairs(TextChatService.TextChannels:GetChildren()) do
     channel.MessageReceived:Connect(function(textChatMessage)
-        if textChatMessage.Text then
+        -- Chỉ xử lý nếu có nội dung chat và người gửi KHÔNG phải bạn
+        if textChatMessage.Text and textChatMessage.TextSource and textChatMessage.TextSource.UserId ~= Players.LocalPlayer.UserId then
             solveAndAnswer(textChatMessage.Text)
         end
     end)
 end
 
 local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
 local addFolder = Workspace:FindFirstChild("Add")
 
 if addFolder then
@@ -238,7 +241,7 @@ PlayerTab:CreateSlider({
    CurrentValue = 16,
    Flag = "WS_Slider",
    Callback = function(Value) 
-      getgenv().WS_Value = Value -- Chỉ gán giá trị khi người chơi tương tác thanh kéo
+      getgenv().WS_Value = Value 
    end,
 })
 
@@ -250,11 +253,11 @@ PlayerTab:CreateSlider({
    CurrentValue = 50,
    Flag = "JP_Slider",
    Callback = function(Value)
-      getgenv().JP_Value = Value -- Chỉ gán giá trị khi người chơi tương tác thanh kéo
+      getgenv().JP_Value = Value 
    end,
 })
 
--- Loop thông minh: Chỉ ghi đè chỉ số nếu biến không còn là nil
+-- Loop thông minh giữ chỉ số
 task.spawn(function()
     while true do
         local char = game.Players.LocalPlayer.Character
@@ -273,7 +276,7 @@ end)
 
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v0.9.1 BETA Fixed Stats",
+   Content = "Version: v0.9.5 BETA Cleaned",
    Duration = 5,
    Image = 4483362458,
 })

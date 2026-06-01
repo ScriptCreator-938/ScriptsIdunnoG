@@ -16,6 +16,23 @@ local Window = Rayfield:CreateWindow({
 getgenv().AutoCollect = false
 getgenv().AutoCrown = false
 getgenv().AutoCombat = false
+getgenv().AutoEquipWeight = false -- Biến điều khiển Auto Equip Weight
+
+-- Biến điều khiển Auto Sac & Asc
+getgenv().AutoSac1 = false
+getgenv().AutoSac2 = false
+getgenv().AutoSac3 = false
+getgenv().AutoSac4 = false
+getgenv().AutoSac5 = false
+getgenv().AutoSac6 = false
+
+getgenv().AutoAsc1 = false
+getgenv().AutoAsc2 = false
+getgenv().AutoAsc3 = false
+getgenv().AutoAsc4 = false
+getgenv().AutoAsc5 = false
+getgenv().AutoAsc6 = false
+
 getgenv().AutoSolution = false 
 getgenv().HideAnswer = false    -- Biến điều khiển ẩn câu trả lời
 getgenv().DelayMin = 0.5        
@@ -108,6 +125,107 @@ MainTab:CreateToggle({
    end,
 })
 
+-- 4. Auto Equip Weight (Nút nằm ngay dưới Auto Combat)
+MainTab:CreateToggle({
+   Name = "Auto Equip Weight",
+   CurrentValue = false,
+   Flag = "EquipWeightFlag",
+   Callback = function(Value)
+      getgenv().AutoEquipWeight = Value
+      if Value then
+         task.spawn(function()
+            local players = game:GetService("Players")
+            while getgenv().AutoEquipWeight do
+               local localPlayer = players.LocalPlayer
+               local backpack = localPlayer and localPlayer:FindFirstChild("Backpack")
+               local char = localPlayer and localPlayer.Character
+               
+               if backpack and char then
+                  -- Tìm món đồ Weight trong hòm đồ Backpack
+                  local weightTool = backpack:FindFirstChild("Weight")
+                  -- Kiểm tra xem nhân vật hiện tại đã cầm Weight chưa
+                  local alreadyEquipped = char:FindFirstChild("Weight")
+                  
+                  if weightTool and not alreadyEquipped and char:FindFirstChildOfClass("Humanoid") then
+                     char:FindFirstChildOfClass("Humanoid"):EquipTool(weightTool)
+                  end
+               end
+               task.wait(0.5) -- Kiểm tra lại mỗi 0.5 giây để tránh giật lag
+            end
+         end)
+      end
+   end,
+})
+
+-- ==========================================
+-- --- SECTION: SACRIFICE ---
+-- ==========================================
+MainTab:CreateSection("— Sacrifice —")
+
+for i = 1, 6 do
+   MainTab:CreateToggle({
+      Name = "Auto Sac " .. i,
+      CurrentValue = false,
+      Flag = "SacFlag" .. i,
+      Callback = function(Value)
+         getgenv()["AutoSac" .. i] = Value
+      end,
+   })
+end
+
+-- ==========================================
+-- --- SECTION: ASCENSION ---
+-- ==========================================
+MainTab:CreateSection("— Ascension —")
+
+for i = 1, 6 do
+   MainTab:CreateToggle({
+      Name = "Auto Asc " .. i,
+      CurrentValue = false,
+      Flag = "AscFlag" .. i,
+      Callback = function(Value)
+         getgenv()["AutoAsc" .. i] = Value
+      end,
+   })
+end
+
+-- Vòng lặp Spam Remote liên tục cho Sac & Asc
+task.spawn(function()
+   local remoteFolder = game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("FromLocalForServer"):WaitForChild("Get")
+   local player = game:GetService("Players").LocalPlayer
+   
+   while true do
+      local stats = player:FindFirstChild("Stats")
+      local levelObj = stats and stats:FindFirstChild("Level")
+      
+      if levelObj then
+         -- Vòng lặp quét trạng thái các nút Sac
+         for i = 1, 6 do
+            if getgenv()["AutoSac" .. i] then
+               local remoteName = "sac" .. i
+               local targetRemote = remoteFolder:FindFirstChild(remoteName)
+               if targetRemote then
+                  targetRemote:FireServer()
+               end
+            end
+         end
+         
+         -- Vòng lặp quét trạng thái các nút Asc
+         for i = 1, 6 do
+            if getgenv()["AutoAsc" .. i] then
+               local remoteName = "asc" .. i
+               local targetRemote = remoteFolder:FindFirstChild(remoteName)
+               if targetRemote then
+                  targetRemote:FireServer()
+               end
+            end
+         end
+      end
+      task.wait() -- Luôn lặp liên tục với tốc độ cao nhất
+   end
+end)
+
+
 -- --- AUTO SOLUTION CHATQUEST ---
 MainTab:CreateSection("— Auto Solution ChatQuest —")
 
@@ -145,10 +263,10 @@ MainTab:CreateInput({
 
 local function solveAndAnswer(messageText)
     if not getgenv().AutoSolution then return end
-    
+
     local mathExpression = string.match(messageText, "What is%s+(.-)%s*%?")
     local rewardText = string.match(messageText, "you get:%s*(.*)") or "Unknown"
-    
+
     if mathExpression then
         local cleanExpression = string.gsub(mathExpression, "[^%d%+%-%*%/%^%.%s]", "")
         local func = loadstring("return " .. cleanExpression)
@@ -159,15 +277,15 @@ local function solveAndAnswer(messageText)
                 if response:sub(-2) == ".0" then
                     response = string.format("%d", result)
                 end
-                
+
                 SolutionLabel:Set(string.format("%s = %s | Reward: %s", cleanExpression, response, rewardText))
-                
+
                 -- Logic xử lý ẩn câu trả lời bằng cách thêm tiền tố /e
                 local finalOutput = response
                 if getgenv().HideAnswer then
                     finalOutput = "/e " .. response
                 end
-                
+
                 local TextChatService = game:GetService("TextChatService")
                 local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
                 if generalChannel then
@@ -290,7 +408,7 @@ end)
 
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v0.9.3 BETA Loaded with Hide Answer Feature",
+   Content = "Version: v0.9.5 BETA Category & Weight Equip Toggled",
    Duration = 5,
    Image = 4483362458,
 })

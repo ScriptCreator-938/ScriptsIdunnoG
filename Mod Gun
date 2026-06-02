@@ -1,0 +1,71 @@
+-- [[ WEAPON MOD GUI - PERMANENT DESTROY SHAKE FOR SPECIFIC GUNS ]]
+local RunService = game:GetService("RunService")
+local Player = game:GetService("Players").LocalPlayer
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "WeaponMod_GUI"
+
+-- Frame chính (Kéo thả, thu gọn)
+local frame = Instance.new("Frame", gui); frame.Size = UDim2.new(0, 200, 0, 150); frame.Position = UDim2.new(0.5, -100, 0.5, -75); frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35); frame.Active = true; frame.Draggable = true; frame.BorderSizePixel = 0
+local topBar = Instance.new("Frame", frame); topBar.Size = UDim2.new(1, 0, 0, 30); topBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25); topBar.Parent = frame
+local title = Instance.new("TextLabel", topBar); title.Size = UDim2.new(1, -30, 1, 0); title.Text = " Weapon Mods"; title.TextColor3 = Color3.new(1,1,1); title.Font = Enum.Font.GothamBold; title.TextXAlignment = Enum.TextXAlignment.Left; title.BackgroundTransparency = 1
+local minBtn = Instance.new("TextButton", topBar); minBtn.Size = UDim2.new(0, 30, 1, 0); minBtn.Position = UDim2.new(1, -30, 0, 0); minBtn.Text = "-"; minBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); minBtn.TextColor3 = Color3.new(1,1,1)
+
+local btnRecoil = Instance.new("TextButton", frame); btnRecoil.Size = UDim2.new(0.9, 0, 0, 40); btnRecoil.Position = UDim2.new(0.05, 0, 0, 40); btnRecoil.Text = "NO RECOIL: OFF"; btnRecoil.BackgroundColor3 = Color3.fromRGB(60, 60, 60); btnRecoil.TextColor3 = Color3.new(1,1,1)
+local btnShake = Instance.new("TextButton", frame); btnShake.Size = UDim2.new(0.9, 0, 0, 40); btnShake.Position = UDim2.new(0.05, 0, 0, 90); btnShake.Text = "NO SHAKE: OFF"; btnShake.BackgroundColor3 = Color3.fromRGB(60, 60, 60); btnShake.TextColor3 = Color3.new(1,1,1)
+
+-- Biến lưu trạng thái
+local noRecoil, noShake, minimized = false, false, false
+local savedStats = {}
+
+-- Danh sách súng duy nhất bị triệt tiêu Shake
+local ShakeTargets = {
+    ["M82A1"] = true,
+    ["MGL [BEANBAG]"] = true
+}
+
+RunService.Heartbeat:Connect(function()
+    local inventory = {}
+    if Player:FindFirstChild("Backpack") then for _, v in pairs(Player.Backpack:GetChildren()) do table.insert(inventory, v) end end
+    if Player.Character then for _, v in pairs(Player.Character:GetChildren()) do if v:IsA("Tool") then table.insert(inventory, v) end end end
+
+    for _, tool in pairs(inventory) do
+        local config = tool:FindFirstChild("LocalConfig") and tool.LocalConfig:FindFirstChild("Configuration")
+        if config then
+            local path = config:GetFullName()
+            
+            -- [1. NO RECOIL] - Quét và xử lý bật/tắt lưu chỉ số cho tất cả súng
+            local statsToFix = {"Accuracy", "RecoilMin", "RecoilMax", "MaximumRange"}
+            if noRecoil then
+                if not savedStats[path] then
+                    savedStats[path] = {}
+                    for _, sName in pairs(statsToFix) do
+                        if config:FindFirstChild(sName) then savedStats[path][sName] = config[sName].Value end
+                    end
+                end
+                if config:FindFirstChild("Accuracy") then config.Accuracy.Value = Vector3.new(0,0,0) end
+                if config:FindFirstChild("RecoilMin") then config.RecoilMin.Value = Vector3.new(0,0,0) end
+                if config:FindFirstChild("RecoilMax") then config.RecoilMax.Value = Vector3.new(0,0,0) end
+                if config:FindFirstChild("MaximumRange") then config.MaximumRange.Value = 10000 end
+            elseif savedStats[path] then
+                for sName, val in pairs(savedStats[path]) do
+                    if config:FindFirstChild(sName) then config[sName].Value = val end
+                end
+                savedStats[path] = nil
+            end
+
+            -- [2. NO SHAKE] - Xóa sổ vĩnh viễn (Chỉ áp dụng cho M82A1 và MGL [BEANBAG])
+            if noShake and ShakeTargets[tool.Name] then
+                local shakeObj = config:FindFirstChild("Shake")
+                if shakeObj then
+                    shakeObj:Destroy() -- Xóa hoàn toàn khỏi súng, không lưu trữ phục hồi
+                end
+            end
+            
+        end
+    end
+end)
+
+-- UI Events
+btnRecoil.MouseButton1Click:Connect(function() noRecoil = not noRecoil; btnRecoil.Text = "NO RECOIL: "..(noRecoil and "ON" or "OFF"); btnRecoil.BackgroundColor3 = noRecoil and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(60, 60, 60) end)
+btnShake.MouseButton1Click:Connect(function() noShake = not noShake; btnShake.Text = "NO SHAKE: "..(noShake and "ON" or "OFF"); btnShake.BackgroundColor3 = noShake and Color3.fromRGB(0, 160, 0) or Color3.fromRGB(60, 60, 60) end)
+minBtn.MouseButton1Click:Connect(function() minimized = not minimized; frame.Size = minimized and UDim2.new(0, 200, 0, 30) or UDim2.new(0, 200, 0, 150); btnRecoil.Visible = not minimized; btnShake.Visible = not minimized; minBtn.Text = minimized and "+" or "-" end)

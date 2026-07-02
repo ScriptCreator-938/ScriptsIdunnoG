@@ -521,33 +521,6 @@ task.spawn(function()
    end
 end)
 
--- --- HỆ THỐNG CHAT TAG MỚI (FIX CHẶN THREAD TRÁNH TREO GUI) ---
-task.spawn(function()
-    local TextChatService = game:GetService("TextChatService")
-    local Players = game:GetService("Players")
-    
-    local TargetUserId = 11210439836
-    local TagText = '<font color="#000000"><b>[👑Owner\'s alt👑]</b></font>'
-    local TagColor = '#FFD700' 
-
-    -- Xử lý thông qua một hàm gán an toàn lồng bên trong
-    local function HandleIncomingMessage(message)
-        local properties = Instance.new("TextChatMessageProperties")
-        if message.TextSource then
-            local sender = Players:GetPlayerByUserId(message.TextSource.UserId)
-            if sender and sender.UserId == TargetUserId then
-                properties.PrefixText = '<font color="' .. TagColor .. '">' .. TagText .. '</font> ' .. message.PrefixText
-            end
-        end
-        return properties
-    end
-
-    -- Đợi cho đến khi hệ thống chat sẵn sàng hoàn toàn rồi mới truyền dữ liệu cấu trúc hiển thị
-    task.defer(function()
-        TextChatService.OnIncomingMessage = HandleIncomingMessage
-    end)
-end)
-
 -- Thông báo kích hoạt thành công
 Rayfield:Notify({
    Title = "Update Success!",

@@ -1,3 +1,37 @@
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+-- URL dẫn tới cơ sở dữ liệu Blacklist (Chúng ta sẽ dùng một trang lưu text online như Pastebin hoặc GitHub, hoặc chính Make.com)
+-- Hiện tại bạn có thể tạo 1 link Pastebin (chứa danh sách ID bị ban dạng: ["123456", "7891011"]) và dán vào đây
+local BlacklistURL = "https://api.myjson.online/v1/records/... (Hoặc link chứa danh sách ID của bạn)"
+
+local function CheckBan()
+    local success, response = pcall(function()
+        return HttpService:GetAsync(BlacklistURL)
+    end)
+    
+    if success and response then
+        -- Giải mã danh sách ID từ trên mạng về
+        local bannedUsers = HttpService:JSONDecode(response)
+        local myId = tostring(LocalPlayer.UserId)
+        
+        -- Kiểm tra xem ID của bạn có nằm trong danh sách đen không
+        for _, bannedId in ipairs(bannedUsers) do
+            if bannedId == myId then
+                -- Nếu trùng ID, tự động đóng game hoặc crash script để không cho xài
+                LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\n\nTài khoản của bạn đã bị khóa vĩnh viễn khỏi TSS Script.\nReason: Banned by Administrator.")
+                while true do end -- Vòng lặp vô hạn để đứng script nếu kick bị chặn
+            end
+        end
+    else
+        warn("Không thể kiểm tra hệ thống bảo mật, vui lòng thử lại sau!")
+    end
+end
+
+-- Chạy kiểm tra ngay khi script vừa được thực thi
+CheckBan()
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({

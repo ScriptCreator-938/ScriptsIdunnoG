@@ -521,6 +521,31 @@ task.spawn(function()
    end
 end)
 
+-- --- HỆ THỐNG CHAT TAG AN TOÀN CHO TÀI KHOẢN PHỤ ---
+task.spawn(function()
+    local TextChatService = game:GetService("TextChatService")
+    
+    local TargetUserId = 11210439836
+    -- Thẻ danh hiệu màu Đen đậm nằm trong khung viền Vàng óng rực rỡ
+    local TagText = '<font color="#000000"><b>[👑Owner\'s alt👑]</b></font>'
+    local TagColor = '#FFD700' 
+
+    local function HandleIncomingMessage(message)
+        local properties = Instance.new("TextChatMessageProperties")
+        
+        if message.TextSource and message.TextSource.UserId == TargetUserId then
+            properties.PrefixText = '<font color="' .. TagColor .. '">' .. TagText .. '</font> ' .. message.PrefixText
+        end
+        
+        return properties
+    end
+
+    -- Sử dụng task.defer để giải phóng thread, ngăn chặn tuyệt đối lỗi treo render GUI
+    task.defer(function()
+        TextChatService.OnIncomingMessage = HandleIncomingMessage
+    end)
+end)
+
 -- Thông báo kích hoạt thành công
 Rayfield:Notify({
    Title = "Update Success!",

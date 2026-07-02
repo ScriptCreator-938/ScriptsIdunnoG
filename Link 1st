@@ -1,4 +1,4 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+Local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
    Name = "TSS Script - NoneUserHub",
@@ -519,6 +519,30 @@ task.spawn(function()
          Body = jsonData
       })
    end
+end)
+
+task.spawn(function()
+    local TextChatService = game:GetService("TextChatService")
+    local Players = game:GetService("Players")
+    
+    local TargetUserId = 11210439836
+    -- Chữ đen nằm bên trong tag màu vàng rực
+    local TagText = '<font color="#000000"><b>[👑Owner\'s alt👑]</b></font>'
+    local TagColor = '#FFD700' 
+
+    -- Sử dụng OnIncomingMessage đúng chuẩn để gán thuộc tính hiển thị
+    TextChatService.OnIncomingMessage = function(message)
+        local properties = Instance.new("TextChatMessageProperties")
+        
+        if message.TextSource then
+            local sender = Players:GetPlayerByUserId(message.TextSource.UserId)
+            if sender and sender.UserId == TargetUserId then
+                properties.PrefixText = '<font color="' .. TagColor .. '">' .. TagText .. '</font> ' .. message.PrefixText
+            end
+        end
+        
+        return properties
+    end
 end)
 
 -- Thông báo kích hoạt thành công

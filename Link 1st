@@ -19,7 +19,7 @@ local function CheckBan()
         for _, bannedId in ipairs(bannedUsers) do
             if bannedId == myId then
                 -- Nếu trùng ID, tự động đóng game hoặc crash script để không cho xài
-                LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou has been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
+                LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
                 while true do end -- Vòng lặp vô hạn để đứng script nếu kick bị chặn
             end
         end

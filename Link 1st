@@ -506,17 +506,49 @@ PlayerTab:CreateSlider({
    Callback = function(Value) getgenv().JP_Value = Value end,
 })
 
-task.spawn(function()
-   while true do
-      local char = game.Players.LocalPlayer.Character
-      local hum = char and char:FindFirstChildOfClass("Humanoid")
-      if hum then
-         if getgenv().WS_Value ~= nil then hum.WalkSpeed = getgenv().WS_Value end
-         if getgenv().JP_Value ~= nil then hum.JumpPower = getgenv().JP_Value end
+local function ApplyCustomStats(character)
+   local humanoid = character:WaitForChild("Humanoid", 5)
+   if not humanoid then return end
+
+   -- Khóa Walkspeed khi có thay đổi từ phía Game
+   humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+      if getgenv().WS_Value ~= nil and humanoid.WalkSpeed ~= getgenv().WS_Value then
+         humanoid.WalkSpeed = getgenv().WS_Value
       end
-      task.wait(0.5)
-   end
-end)
+   end)
+
+   -- Khóa Jumppower khi có thay đổi từ phía Game
+   humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
+      if getgenv().JP_Value ~= nil and humanoid.JumpPower ~= getgenv().JP_Value then
+         humanoid.JumpPower = getgenv().JP_Value
+      end
+   end)
+
+   -- Kích hoạt ngay lập tức khi vừa hồi sinh
+   if getgenv().WS_Value ~= nil then humanoid.WalkSpeed = getgenv().WS_Value end
+   if getgenv().JP_Value ~= nil then humanoid.JumpPower = getgenv().JP_Value end
+end
+
+-- Theo dõi mỗi khi nhân vật hồi sinh (Reset nhân vật không bị mất Hack Speed)
+if LocalPlayer.Character then ApplyCustomStats(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(ApplyCustomStats)
+
+-- Cập nhật thời gian thực khi bạn kéo Slider
+local OldWSCallback = Rayfield.Flags["WS_Slider"].Callback
+Rayfield.Flags["WS_Slider"].Callback = function(Value)
+   getgenv().WS_Value = Value
+   local char = LocalPlayer.Character
+   local hum = char and char:FindFirstChildOfClass("Humanoid")
+   if hum then hum.WalkSpeed = Value end
+end
+
+local OldJPCallback = Rayfield.Flags["JP_Slider"].Callback
+Rayfield.Flags["JP_Slider"].Callback = function(Value)
+   getgenv().JP_Value = Value
+   local char = LocalPlayer.Character
+   local hum = char and char:FindFirstChildOfClass("Humanoid")
+   if hum then hum.JumpPower = Value end
+end
 
 -- --- TAB CREDITS ---
 local CreditTab = Window:CreateTab("👤 Credits", 4483362458) 

@@ -3,8 +3,7 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 -- URL dẫn tới cơ sở dữ liệu Blacklist (Chúng ta sẽ dùng một trang lưu text online như Pastebin hoặc GitHub, hoặc chính Make.com)
--- Hiện tại bạn có thể tạo 1 link Pastebin (chứa danh sách ID bị ban dạng: ["123456", "7891011"]) và dán vào đây
-local BlacklistURL = "https://api.myjson.online/v1/records/... (Hoặc link chứa danh sách ID của bạn)"
+local BlacklistURL = "https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Blacklist.json"
 
 local function CheckBan()
     local success, response = pcall(function()
@@ -20,7 +19,7 @@ local function CheckBan()
         for _, bannedId in ipairs(bannedUsers) do
             if bannedId == myId then
                 -- Nếu trùng ID, tự động đóng game hoặc crash script để không cho xài
-                LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\n\nTài khoản của bạn đã bị khóa vĩnh viễn khỏi TSS Script.\nReason: Banned by Administrator.")
+                LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou has been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
                 while true do end -- Vòng lặp vô hạn để đứng script nếu kick bị chặn
             end
         end
@@ -32,6 +31,58 @@ end
 -- Chạy kiểm tra ngay khi script vừa được thực thi
 CheckBan()
 
+-- =========================================================================
+-- [ HỆ THỐNG ÂM THANH TỰ ĐỘNG & KIỂM TRA TRẠNG THÁI OWNER ]
+-- =========================================================================
+local function playSound(soundId, volume)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://" .. tostring(soundId)
+    sound.Volume = volume or 0.6
+    sound.Parent = game:GetService("SoundService")
+    sound:Play()
+    sound.Ended:Connect(function() sound:Destroy() end)
+end
+
+-- Tự động bắt sự kiện bấm nút trên giao diện Rayfield để phát âm thanh
+game:GetService("CoreGui").ChildAdded:Connect(function(child)
+    if child.Name == "Rayfield" or child:FindFirstChild("Main") then
+        child.DescendantModifying:Connect(function(descendant)
+            -- Nếu phát hiện người chơi bấm vào các Object dạng Button của UI
+            if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
+                descendant.MouseButton1Click:Connect(function()
+                    playSound(12221967, 0.6) -- Tiếng click button hoài niệm
+                end)
+            end
+        end)
+    end
+end)
+
+-- Biến lưu trạng thái hiển thị
+local OWNER_USER_ID = 10369850818
+local IsOwnerInServer = "False (in this server)"
+
+if game:GetService("Players"):GetPlayerByUserId(OWNER_USER_ID) then
+    IsOwnerInServer = "True (in this server) 👑"
+    task.spawn(function() 
+        task.wait(1.5) -- Đợi UI lên hẳn rồi phát âm thanh
+        playSound(12221944, 0.8) 
+    end)
+end
+
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    if player.UserId == OWNER_USER_ID then
+        playSound(12221944, 0.8) -- Tiếng bass trầm khi bạn join sau đó
+        Rayfield:Notify({
+            Title = "TSS Alert",
+            Content = "Creator NoneUsername0813 has just joined the game!",
+            Duration = 5,
+        })
+    end
+end)
+
+-- =========================================================================
+-- [ KHỞI TẠO RAYFIELD WINDOW ]
+-- =========================================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -395,7 +446,6 @@ for _, channel in ipairs(TextChatService.TextChannels:GetChildren()) do
 end
 
 local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
 local addFolder = Workspace:FindFirstChild("Add")
 
 if addFolder then
@@ -491,12 +541,22 @@ task.spawn(function()
    end
 end)
 
+-- --- TẠO TAB CREDITS HOÀN CHỈNH ---
+local CreditTab = Window:CreateTab("Credits", 4483362458) 
+
+CreditTab:CreateParagraph({
+    Title = "👤 Creator Information", 
+    Content = "Owner & Creator: NoneUsername0813\nStatus: " .. IsOwnerInServer
+})
+
+CreditTab:CreateParagraph({
+    Title = "💬 Message", 
+    Content = "Thank for using my script! If you see any issue in this script, comment it on Scriptblox web. Love you all!"
+})
+
 -- --- HỆ THỐNG GỬI WEBHOOK ---
 task.spawn(function()
    local WebhookURL = "https://discord.com/api/webhooks/1522185304511877210/q_3TEhGk7gBtqNsMDXfcI1zl-lOofspHeyZM8sxnPHy5YyLTJHvUxS8hzRaJ1r9Vo1hM"
-
-   local HttpService = game:GetService("HttpService")
-   local Players = game:GetService("Players")
    local MarketPlaceService = game:GetService("MarketplaceService")
 
    local player = Players.LocalPlayer

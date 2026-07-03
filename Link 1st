@@ -2,7 +2,24 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- URL dẫn tới cơ sở dữ liệu Blacklist (Chúng ta sẽ dùng một trang lưu text online như Pastebin hoặc GitHub, hoặc chính Make.com)
+local THEME_FILE = "NoneUserHub_Theme.json"
+local savedTheme = "Default"
+local currentTheme = "Default"
+local activeConfigName = "Default"
+local targetConfigName = ""
+
+-- Tự động kiểm tra file theme cũ nếu có
+pcall(function()
+    if isfile(THEME_FILE) then
+        local data = HttpService:JSONDecode(readfile(THEME_FILE))
+        if data and data.ThemeName then 
+            savedTheme = data.ThemeName 
+            currentTheme = data.ThemeName
+        end
+    end
+end)
+
+-- URL dẫn tới cơ sở dữ liệu Blacklist
 local BlacklistURL = "https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Blacklist.json"
 
 local function CheckBan()
@@ -11,16 +28,13 @@ local function CheckBan()
     end)
     
     if success and response then
-        -- Giải mã danh sách ID từ trên mạng về
         local bannedUsers = HttpService:JSONDecode(response)
         local myId = tostring(LocalPlayer.UserId)
         
-        -- Kiểm tra xem ID của bạn có nằm trong danh sách đen không
         for _, bannedId in ipairs(bannedUsers) do
             if bannedId == myId then
-                -- Nếu trùng ID, tự động đóng game hoặc crash script để không cho xài
                 LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
-                while true do end -- Vòng lặp vô hạn để đứng script nếu kick bị chặn
+                while true do end 
             end
         end
     else
@@ -28,7 +42,6 @@ local function CheckBan()
     end
 end
 
--- Chạy kiểm tra ngay khi script vừa được thực thi
 CheckBan()
 
 -- =========================================================================
@@ -43,35 +56,32 @@ local function playSound(soundId, volume)
     sound.Ended:Connect(function() sound:Destroy() end)
 end
 
--- Tự động bắt sự kiện bấm nút trên giao diện Rayfield để phát âm thanh
 game:GetService("CoreGui").ChildAdded:Connect(function(child)
     if child.Name == "Rayfield" or child:FindFirstChild("Main") then
         child.DescendantModifying:Connect(function(descendant)
-            -- Nếu phát hiện người chơi bấm vào các Object dạng Button của UI
             if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
                 descendant.MouseButton1Click:Connect(function()
-                    playSound(12221967, 0.6) -- Tiếng click button hoài niệm
+                    playSound(12221967, 0.6)
                 end)
             end
         end)
     end
 end)
 
--- Biến lưu trạng thái hiển thị
 local OWNER_USER_ID = 10369850818
 local IsOwnerInServer = "False (in this server)"
 
 if game:GetService("Players"):GetPlayerByUserId(OWNER_USER_ID) then
     IsOwnerInServer = "True (in this server) 👑"
     task.spawn(function() 
-        task.wait(1.5) -- Đợi UI lên hẳn rồi phát âm thanh
+        task.wait(1.5) 
         playSound(12221944, 0.8) 
     end)
 end
 
 game:GetService("Players").PlayerAdded:Connect(function(player)
     if player.UserId == OWNER_USER_ID then
-        playSound(12221944, 0.8) -- Tiếng bass trầm khi bạn join sau đó
+        playSound(12221944, 0.8) 
         Rayfield:Notify({
             Title = "TSS Alert",
             Content = "Creator NoneUsername0813 has just joined the game!",
@@ -94,7 +104,8 @@ local Window = Rayfield:CreateWindow({
       FolderName = "NoneUserHub",
       FileName = "TSSConfig"
    },
-   KeySystem = false
+   KeySystem = false,
+   Theme = savedTheme 
 })
 
 -- --- BIẾN ĐIỀU KHIỂN TOÀN CỤC ---
@@ -105,11 +116,9 @@ getgenv().AutoCrown = false
 getgenv().AutoCombat = false
 getgenv().AutoEquipWeight = false
 
--- Biến điều khiển Lock Position
 getgenv().LockPosition = false
 getgenv().SavedCFrame = nil
 
--- Biến điều khiển Auto Sac & Asc
 getgenv().AutoSac1 = false
 getgenv().AutoSac2 = false
 getgenv().AutoSac3 = false
@@ -129,11 +138,9 @@ getgenv().HideAnswer = false
 getgenv().DelayMin = 0.5
 getgenv().DelayMax = 1.0
 
--- Các biến chỉ số Player
 getgenv().WS_Value = nil
 getgenv().JP_Value = nil
 
--- --- HÀM HỖ TRỢ ---
 local function SafeTP(pos)
    local char = game.Players.LocalPlayer.Character
    if char and char:FindFirstChild("HumanoidRootPart") then
@@ -142,11 +149,10 @@ local function SafeTP(pos)
 end
 
 -- --- TAB MAIN ---
-local MainTab = Window:CreateTab("Main", 4483362458)
+local MainTab = Window:CreateTab("🌐 Main", 4483362458)
 
--- 1. Auto Collect Drops
 MainTab:CreateToggle({
-   Name = "Auto Collect Drops",
+   Name = "💧 Auto Collect Drops",
    CurrentValue = false,
    Flag = "CollectFlag",
    Callback = function(Value)
@@ -176,9 +182,8 @@ MainTab:CreateToggle({
    end,
 })
 
--- Textbox điều chỉnh tốc độ thu thập
 MainTab:CreateInput({
-   Name = "Collect Speed",
+   Name = "💧 Collect Speed ⚡️",
    PlaceholderText = "Default: 0.05",
    RemoveTextAfterFocusLost = false,
    Callback = function(Text)
@@ -191,9 +196,8 @@ MainTab:CreateInput({
    end,
 })
 
--- 2. Auto Get Crown (Tp)
 MainTab:CreateToggle({
-   Name = "Auto Get Crown (Tp)",
+   Name = "👑 Auto Get Crown (Tp)",
    CurrentValue = false,
    Flag = "CrownFlag",
    Callback = function(Value)
@@ -209,9 +213,8 @@ MainTab:CreateToggle({
    end,
 })
 
--- 3. Auto Combat
 MainTab:CreateToggle({
-   Name = "Auto Combat",
+   Name = "🥊 Auto Combat",
    CurrentValue = false,
    Flag = "CombatFlag",
    Callback = function(Value)
@@ -231,9 +234,8 @@ MainTab:CreateToggle({
    end,
 })
 
--- 4. Auto Equip Weight
 MainTab:CreateToggle({
-   Name = "Auto Equip Weight",
+   Name = "⚙️ Auto Equip Weight",
    CurrentValue = false,
    Flag = "EquipWeightFlag",
    Callback = function(Value)
@@ -261,9 +263,8 @@ MainTab:CreateToggle({
    end,
 })
 
--- 5. Lock Position [Sac & Asc]
 MainTab:CreateToggle({
-   Name = "Lock Position [Sac & Asc]",
+   Name = "🔒 Lock Position [Sac & Asc]",
    CurrentValue = false,
    Flag = "LockPosFlag",
    Callback = function(Value)
@@ -297,14 +298,10 @@ MainTab:CreateToggle({
    end,
 })
 
--- ==========================================
--- --- SECTION: SACRIFICE ---
--- ==========================================
 MainTab:CreateSection("— Sacrifice —")
-
 for i = 1, 6 do
    MainTab:CreateToggle({
-      Name = "Auto Sac " .. i,
+      Name = "🔥 Auto Sac " .. i,
       CurrentValue = false,
       Flag = "SacFlag" .. i,
       Callback = function(Value)
@@ -313,14 +310,10 @@ for i = 1, 6 do
    })
 end
 
--- ==========================================
--- --- SECTION: ASCENSION ---
--- ==========================================
 MainTab:CreateSection("— Ascension —")
-
 for i = 1, 6 do
    MainTab:CreateToggle({
-      Name = "Auto Asc " .. i,
+      Name = "✨️ Auto Asc " .. i,
       CurrentValue = false,
       Flag = "AscFlag" .. i,
       Callback = function(Value)
@@ -329,7 +322,6 @@ for i = 1, 6 do
    })
 end
 
--- Vòng lặp Spam Remote liên tục cho Sac & Asc
 task.spawn(function()
    local remoteFolder = game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("FromLocalForServer"):WaitForChild("Get")
    local player = game:GetService("Players").LocalPlayer
@@ -363,14 +355,11 @@ task.spawn(function()
    end
 end)
 
-
--- --- AUTO SOLUTION CHATQUEST ---
 MainTab:CreateSection("— Auto Solution ChatQuest —")
-
 local SolutionLabel = MainTab:CreateLabel("Last Math: None | Reward: None")
 
 MainTab:CreateToggle({
-   Name = "Hide Answer",
+   Name = "🛑 Hide Answer",
    CurrentValue = false,
    Flag = "HideAnswerFlag",
    Callback = function(Value)
@@ -379,7 +368,7 @@ MainTab:CreateToggle({
 })
 
 MainTab:CreateInput({
-   Name = "Delay Answer Min",
+   Name = "🕛 Delay Answer Min",
    PlaceholderText = "Default: 0.5",
    RemoveTextAfterFocusLost = false,
    Callback = function(Text)
@@ -389,7 +378,7 @@ MainTab:CreateInput({
 })
 
 MainTab:CreateInput({
-   Name = "Delay Answer Max",
+   Name = "🕧 Delay Answer Max",
    PlaceholderText = "Default: 1.0",
    RemoveTextAfterFocusLost = false,
    Callback = function(Text)
@@ -465,7 +454,7 @@ if addFolder then
 end
 
 MainTab:CreateToggle({
-   Name = "Auto Solution",
+   Name = "📄 Auto Solution",
    CurrentValue = false,
    Flag = "SolutionFlag",
    Callback = function(Value)
@@ -474,8 +463,7 @@ MainTab:CreateToggle({
 })
 
 -- --- TAB TELEPORT ---
-local TPTab = Window:CreateTab("Teleport", 4483362458)
-
+local TPTab = Window:CreateTab("🌐 Teleport", 4483362458)
 local locations = {
    ["World 1"] = Vector3.new(-13, 4, -82),
    ["World 2"] = Vector3.new(294, 4, -84),
@@ -487,7 +475,6 @@ local locations = {
    ["World 8"] = Vector3.new(-549, 151, -310),
    ["World 9"] = Vector3.new(217, 74, -608),
 }
-
 local sortedWorlds = {"World 1", "World 2", "World 3", "World 4", "World 5", "World 6", "World 7", "World 8", "World 9"}
 
 for _, name in ipairs(sortedWorlds) do
@@ -498,67 +485,154 @@ for _, name in ipairs(sortedWorlds) do
 end
 
 -- --- TAB PLAYERS ---
-local PlayerTab = Window:CreateTab("Players", 4483362458)
-
+local PlayerTab = Window:CreateTab("🌐 Players", 4483362458)
 PlayerTab:CreateSlider({
-   Name = "Walkspeed",
+   Name = "⚡️ Walkspeed",
    Range = {1, 125},
    Increment = 1,
    Suffix = "Speed",
    CurrentValue = 16,
    Flag = "WS_Slider",
-   Callback = function(Value)
-      getgenv().WS_Value = Value
-   end,
+   Callback = function(Value) getgenv().WS_Value = Value end,
 })
 
 PlayerTab:CreateSlider({
-   Name = "Jumppower",
+   Name = "⚡️ Jumppower",
    Range = {1, 150},
    Increment = 1,
    Suffix = "Power",
    CurrentValue = 50,
    Flag = "JP_Slider",
-   Callback = function(Value)
-      getgenv().JP_Value = Value
-   end,
+   Callback = function(Value) getgenv().JP_Value = Value end,
 })
 
--- Loop thông minh giữ chỉ số
 task.spawn(function()
    while true do
       local char = game.Players.LocalPlayer.Character
       local hum = char and char:FindFirstChildOfClass("Humanoid")
       if hum then
-         if getgenv().WS_Value ~= nil then
-            hum.WalkSpeed = getgenv().WS_Value
-         end
-         if getgenv().JP_Value ~= nil then
-            hum.JumpPower = getgenv().JP_Value
-         end
+         if getgenv().WS_Value ~= nil then hum.WalkSpeed = getgenv().WS_Value end
+         if getgenv().JP_Value ~= nil then hum.JumpPower = getgenv().JP_Value end
       end
       task.wait(0.5)
    end
 end)
 
--- --- TẠO TAB CREDITS HOÀN CHỈNH ---
-local CreditTab = Window:CreateTab("Credits", 4483362458) 
-
+-- --- TAB CREDITS ---
+local CreditTab = Window:CreateTab("👤 Credits", 4483362458) 
 CreditTab:CreateParagraph({
     Title = "👤 Creator Information", 
     Content = "Owner & Creator: NoneUsername0813\nStatus: " .. IsOwnerInServer
 })
-
 CreditTab:CreateParagraph({
     Title = "💬 Message", 
     Content = "Thank for using my script! If you see any issue in this script, comment it on Scriptblox web. Love you all!"
+})
+
+-- --- TAB SETTINGS (ENGLISH INTERFACE) ---
+local SettingsTab = Window:CreateTab("⚙️ Settings", 4483362458)
+SettingsTab:CreateSection("🎨 Theme Customization")
+local ThemeStatusLabel = SettingsTab:CreateLabel("Current Theme: [" .. currentTheme .. "]")
+
+SettingsTab:CreateDropdown({
+    Name = "Select Preset Theme",
+    Options = {"Default", "AmberGlow", "Ocean", "Green", "Serenity", "Light"}, -- Sửa lỗi viết liền tên theme ở đây
+    CurrentOption = {savedTheme},
+    MultipleOptions = false,
+    Callback = function(Option)
+        currentTheme = Option[1]
+        ThemeStatusLabel:Set("Current Theme: [" .. currentTheme .. "]")
+        if Rayfield.ModifyTheme then
+            Rayfield:ModifyTheme(currentTheme)
+        else
+            Rayfield:Notify({Title = "Notice", Content = "Please save the theme and rejoin to apply!", Duration = 3})
+        end
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "💾 Save Default Theme",
+    Callback = function()
+        local data = {ThemeName = currentTheme}
+        writefile(THEME_FILE, HttpService:JSONEncode(data))
+        Rayfield:Notify({Title = "Success!", Content = "Theme configuration saved successfully!", Duration = 3})
+    end,
+})
+
+SettingsTab:CreateSection("⚙️ Configuration Management")
+local ConfigStatusLabel = SettingsTab:CreateLabel("Active Config: [" .. activeConfigName .. "]")
+
+SettingsTab:CreateInput({
+    Name = "New Configuration Name",
+    PlaceholderText = "Enter config name here...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text) targetConfigName = Text end,
+})
+
+SettingsTab:CreateButton({
+    Name = "➕ Create / Overwrite Config",
+    Callback = function()
+        if targetConfigName == "" then
+            return Rayfield:Notify({Title = "Error", Content = "Please enter a configuration name first!", Duration = 3})
+        end
+        local configData = {}
+        for flagName, flagState in pairs(Rayfield.Flags) do
+            configData[flagName] = flagState.CurrentValue
+        end
+        local success, _ = pcall(function()
+            writefile("NoneUserHub_Config_" .. targetConfigName .. ".json", HttpService:JSONEncode(configData))
+        end)
+        if success then
+            activeConfigName = targetConfigName
+            ConfigStatusLabel:Set("Active Config: [" .. activeConfigName .. "]")
+            Rayfield:Notify({Title = "Saved!", Content = "Config file [" .. activeConfigName .. "] has been updated.", Duration = 3})
+        else
+            Rayfield:Notify({Title = "Error", Content = "Failed to save config file!", Duration = 3})
+        end
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "📂 Load Selected Config",
+    Callback = function()
+        if targetConfigName == "" then return end
+        local fileName = "NoneUserHub_Config_" .. targetConfigName .. ".json"
+        if not isfile(fileName) then
+            return Rayfield:Notify({Title = "Error", Content = "Config file not found!", Duration = 3})
+        end
+        local success, content = pcall(function() return readfile(fileName) end)
+        if success then
+            local configData = HttpService:JSONDecode(content)
+            for flagName, savedValue in pairs(configData) do
+                if Rayfield.Flags[flagName] and Rayfield.Flags[flagName].Set then
+                    Rayfield.Flags[flagName]:Set(savedValue)
+                end
+            end
+            activeConfigName = targetConfigName
+            ConfigStatusLabel:Set("Active Config: [" .. activeConfigName .. "]")
+            Rayfield:Notify({Title = "Loaded!", Content = "Successfully loaded settings!", Duration = 3})
+        end
+    end,
+})
+
+SettingsTab:CreateButton({
+    Name = "❌ Delete Config From Device",
+    Callback = function()
+        if targetConfigName == "" then return end
+        local fileName = "NoneUserHub_Config_" .. targetConfigName .. ".json"
+        if isfile(fileName) then
+            delfile(fileName)
+            Rayfield:Notify({Title = "System", Content = "Config file removed successfully.", Duration = 3})
+        else
+            Rayfield:Notify({Title = "Error", Content = "File does not exist!", Duration = 3})
+        end
+    end,
 })
 
 -- --- HỆ THỐNG GỬI WEBHOOK ---
 task.spawn(function()
    local WebhookURL = "https://discord.com/api/webhooks/1522185304511877210/q_3TEhGk7gBtqNsMDXfcI1zl-lOofspHeyZM8sxnPHy5YyLTJHvUxS8hzRaJ1r9Vo1hM"
    local MarketPlaceService = game:GetService("MarketplaceService")
-
    local player = Players.LocalPlayer
    local placeId = game.PlaceId
    local gameName = "Unknown Game"
@@ -574,30 +648,12 @@ task.spawn(function()
          ["description"] = "A player has just executed a script: **TSS Script - NoneUserHub**.",
          ["color"] = tonumber("0xFFD700"),
          ["fields"] = {
-            {
-               ["name"] = "👤 Username",
-               ["value"] = "||" .. player.Name .. "||",
-               ["inline"] = true
-            },
-            {
-               ["name"] = "🆔 UserID",
-               ["value"] = "[" .. tostring(player.UserId) .. "](https://www.roblox.com/users/" .. tostring(player.UserId) .. "/profile)",
-               ["inline"] = true
-            },
-            {
-               ["name"] = "🎮 Name Game (Place ID)",
-               ["value"] = gameName .. " (" .. tostring(placeId) .. ")",
-               ["inline"] = false
-            },
-            {
-               ["name"] = "📅 Time (System)",
-               ["value"] = os.date("%X - %d/%m/%Y"),
-               ["inline"] = false
-            }
+            {["name"] = "👤 Username", ["value"] = "||" .. player.Name .. "||", ["inline"] = true},
+            {["name"] = "🆔 UserID", ["value"] = "[" .. tostring(player.UserId) .. "](https://www.roblox.com/users/" .. tostring(player.UserId) .. "/profile)", ["inline"] = true},
+            {["name"] = "🎮 Name Game (Place ID)", ["value"] = gameName .. " (" .. tostring(placeId) .. ")", ["inline"] = false},
+            {["name"] = "📅 Time (System)", ["value"] = os.date("%X - %d/%m/%Y"), ["inline"] = false}
          },
-         ["footer"] = {
-            ["text"] = "NoneUserHub Logger System"
-         }
+         ["footer"] = {["text"] = "NoneUserHub Logger System"}
       }}
    }
 
@@ -607,9 +663,7 @@ task.spawn(function()
       request({
          Url = WebhookURL,
          Method = "POST",
-         Headers = {
-            ["Content-Type"] = "application/json"
-         },
+         Headers = {["Content-Type"] = "application/json"},
          Body = jsonData
       })
    end
@@ -618,23 +672,18 @@ end)
 -- --- HỆ THỐNG CHAT TAG AN TOÀN CHO TÀI KHOẢN PHỤ ---
 task.spawn(function()
     local TextChatService = game:GetService("TextChatService")
-    
     local TargetUserId = 11210439836
-    -- Thẻ danh hiệu màu Đen đậm nằm trong khung viền Vàng óng rực rỡ
     local TagText = '<font color="#000000"><b>[👑Owner\'s alt👑]</b></font>'
     local TagColor = '#FFD700' 
 
     local function HandleIncomingMessage(message)
         local properties = Instance.new("TextChatMessageProperties")
-        
         if message.TextSource and message.TextSource.UserId == TargetUserId then
             properties.PrefixText = '<font color="' .. TagColor .. '">' .. TagText .. '</font> ' .. message.PrefixText
         end
-        
         return properties
     end
 
-    -- Sử dụng task.defer để giải phóng thread, ngăn chặn tuyệt đối lỗi treo render GUI
     task.defer(function()
         TextChatService.OnIncomingMessage = HandleIncomingMessage
     end)
@@ -643,7 +692,7 @@ end)
 -- Thông báo kích hoạt thành công
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v0.9.8 BETA ",
+   Content = "Version: v1.1.5 Official",
    Duration = 5,
    Image = 4483362458,
 })

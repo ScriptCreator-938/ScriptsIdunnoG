@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local THEME_FILE = "NoneUserHub_Theme.json"
@@ -28,13 +29,14 @@ local function CheckBan()
     end)
     
     if success and response then
-        local bannedUsers = HttpService:JSONDecode(response)
-        local myId = tostring(LocalPlayer.UserId)
-        
-        for _, bannedId in ipairs(bannedUsers) do
-            if bannedId == myId then
-                LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
-                while true do end 
+        local successDecode, bannedUsers = pcall(function() return HttpService:JSONDecode(response) end)
+        if successDecode and bannedUsers then
+            local myId = tostring(LocalPlayer.UserId)
+            for _, bannedId in ipairs(bannedUsers) do
+                if tostring(bannedId) == myId then
+                    LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
+                    while true do end 
+                end
             end
         end
     else
@@ -42,30 +44,35 @@ local function CheckBan()
     end
 end
 
-CheckBan()
+-- Chạy checkban an toàn bằng task.spawn để tránh chặn luồng khởi tạo UI
+task.spawn(CheckBan)
 
 -- =========================================================================
 -- [ HỆ THỐNG ÂM THANH TỰ ĐỘNG & KIỂM TRA TRẠNG THÁI OWNER ]
 -- =========================================================================
 local function playSound(soundId, volume)
-    local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://" .. tostring(soundId)
-    sound.Volume = volume or 0.6
-    sound.Parent = game:GetService("SoundService")
-    sound:Play()
-    sound.Ended:Connect(function() sound:Destroy() end)
+    pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://" .. tostring(soundId)
+        sound.Volume = volume or 0.6
+        sound.Parent = game:GetService("SoundService")
+        sound:Play()
+        sound.Ended:Connect(function() sound:Destroy() end)
+    end)
 end
 
-game:GetService("CoreGui").ChildAdded:Connect(function(child)
-    if child.Name == "Rayfield" or child:FindFirstChild("Main") then
-        child.DescendantModifying:Connect(function(descendant)
-            if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
-                descendant.MouseButton1Click:Connect(function()
-                    playSound(12221967, 0.6)
-                end)
-            end
-        end)
-    end
+pcall(function()
+    game:GetService("CoreGui").ChildAdded:Connect(function(child)
+        if child.Name == "Rayfield" or child:FindFirstChild("Main") then
+            child.DescendantAdded:Connect(function(descendant)
+                if descendant:IsA("TextButton") or descendant:IsA("ImageButton") then
+                    descendant.MouseButton1Click:Connect(function()
+                        playSound(12221967, 0.6)
+                    end)
+                end
+            end)
+        end
+    end)
 end)
 
 local OWNER_USER_ID = 10369850818
@@ -82,11 +89,13 @@ end
 game:GetService("Players").PlayerAdded:Connect(function(player)
     if player.UserId == OWNER_USER_ID then
         playSound(12221944, 0.8) 
-        Rayfield:Notify({
-            Title = "TSS Alert",
-            Content = "Creator NoneUsername0813 has just joined the game!",
-            Duration = 5,
-        })
+        if Rayfield then
+            Rayfield:Notify({
+                Title = "TSS Alert",
+                Content = "Creator NoneUsername0813 has just joined the game!",
+                Duration = 5,
+            })
+        end
     end
 end)
 
@@ -119,19 +128,10 @@ getgenv().AutoEquipWeight = false
 getgenv().LockPosition = false
 getgenv().SavedCFrame = nil
 
-getgenv().AutoSac1 = false
-getgenv().AutoSac2 = false
-getgenv().AutoSac3 = false
-getgenv().AutoSac4 = false
-getgenv().AutoSac5 = false
-getgenv().AutoSac6 = false
-
-getgenv().AutoAsc1 = false
-getgenv().AutoAsc2 = false
-getgenv().AutoAsc3 = false
-getgenv().AutoAsc4 = false
-getgenv().AutoAsc5 = false
-getgenv().AutoAsc6 = false
+for i = 1, 6 do
+    getgenv()["AutoSac" .. i] = false
+    getgenv()["AutoAsc" .. i] = false
+end
 
 getgenv().AutoSolution = false
 getgenv().HideAnswer = false
@@ -141,14 +141,77 @@ getgenv().DelayMax = 1.0
 getgenv().WS_Value = nil
 getgenv().JP_Value = nil
 
+-- Biến toàn cục cho Tab AFK & Graphics
+getgenv().LowGraphics = false
+getgenv().NightTimeMode = false
+getgenv().AutoJumpAFK = false
+getgenv().AutoJumpDelay = 5
+getgenv().EnableFPSLimit = false
+getgenv().TargetFPS = 60
+
+local AFKStartTime = 0
+
+-- Khởi tạo cấu trúc Black Screen
+local BlackFrameGui = Instance.new("ScreenGui")
+local BlackFrame = Instance.new("Frame")
+local TimerLabel = Instance.new("TextLabel")
+local BlackFPSLabel = Instance.new("TextLabel")
+
+BlackFrameGui.Name = "AFK_BlackScreen_System"
+BlackFrameGui.IgnoreGuiInset = true
+BlackFrameGui.Enabled = false
+
+BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackFrame.Parent = BlackFrameGui
+
+TimerLabel.Size = UDim2.new(1, 0, 0, 50)
+TimerLabel.Position = UDim2.new(0, 0, 0.5, -40)
+TimerLabel.BackgroundTransparency = 1
+TimerLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+TimerLabel.TextSize = 24
+TimerLabel.Font = Enum.Font.SourceSansBold
+TimerLabel.Text = "AFKing Off"
+TimerLabel.Parent = BlackFrame
+
+BlackFPSLabel.Size = UDim2.new(1, 0, 0, 30)
+BlackFPSLabel.Position = UDim2.new(0, 0, 0.5, 20)
+BlackFPSLabel.BackgroundTransparency = 1
+BlackFPSLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+BlackFPSLabel.TextSize = 18
+BlackFPSLabel.Font = Enum.Font.SourceSans
+BlackFPSLabel.Text = "FPS: --"
+BlackFPSLabel.Parent = BlackFrame
+
+pcall(function()
+    BlackFrameGui.Parent = game:GetService("CoreGui")
+end)
+
+-- Vòng lặp cập nhật đồng hồ đếm thời gian treo máy
+task.spawn(function()
+    while true do
+        if BlackFrameGui.Enabled then
+            local elapsed = os.time() - AFKStartTime
+            local hours = math.floor(elapsed / 3600)
+            local minutes = math.floor((elapsed % 3600) / 60)
+            local seconds = elapsed % 60
+            
+            TimerLabel.Text = string.format("AFKing On.. Time AFKing: [%02d:%02d:%02d]", hours, minutes, seconds)
+        end
+        task.wait(1)
+    end
+end)
+
 local function SafeTP(pos)
-   local char = game.Players.LocalPlayer.Character
+   local char = LocalPlayer.Character
    if char and char:FindFirstChild("HumanoidRootPart") then
       char.HumanoidRootPart.CFrame = CFrame.new(pos)
    end
 end
 
--- --- TAB MAIN ---
+-- =========================================================================
+-- [ TAB MAIN ]
+-- =========================================================================
 local MainTab = Window:CreateTab("🌐 Main", 4483362458)
 
 MainTab:CreateToggle({
@@ -160,7 +223,7 @@ MainTab:CreateToggle({
       if Value then
          task.spawn(function()
             while getgenv().AutoCollect do
-               local char = game.Players.LocalPlayer.Character
+               local char = LocalPlayer.Character
                if char and char:FindFirstChild("Head") then
                   local worlds = {"World1", "World2", "World3", "World4", "World5", "World6", "World7", "World8", "World9"}
                   for _, wName in pairs(worlds) do
@@ -188,11 +251,7 @@ MainTab:CreateInput({
    RemoveTextAfterFocusLost = false,
    Callback = function(Text)
       local num = tonumber(Text)
-      if num then
-         getgenv().CollectSpeed = num
-      else
-         getgenv().CollectSpeed = 0.05
-      end
+      getgenv().CollectSpeed = num or 0.05
    end,
 })
 
@@ -222,9 +281,9 @@ MainTab:CreateToggle({
       if Value then
          task.spawn(function()
             while getgenv().AutoCombat do
-               local char = game.Players.LocalPlayer.Character
+               local char = LocalPlayer.Character
                if char and char:FindFirstChild("Combat") then
-                  local args = { game.Players.LocalPlayer }
+                  local args = { LocalPlayer }
                   char.Combat.RemoteUse:FireServer(unpack(args))
                end
                task.wait(0.1)
@@ -242,11 +301,9 @@ MainTab:CreateToggle({
       getgenv().AutoEquipWeight = Value
       if Value then
          task.spawn(function()
-            local players = game:GetService("Players")
             while getgenv().AutoEquipWeight do
-               local localPlayer = players.LocalPlayer
-               local backpack = localPlayer and localPlayer:FindFirstChild("Backpack")
-               local char = localPlayer and localPlayer.Character
+               local backpack = LocalPlayer:FindFirstChild("Backpack")
+               local char = LocalPlayer.Character
 
                if backpack and char then
                   local weightTool = backpack:FindFirstChild("Weight")
@@ -269,10 +326,8 @@ MainTab:CreateToggle({
    Flag = "LockPosFlag",
    Callback = function(Value)
       getgenv().LockPosition = Value
-      local player = game:GetService("Players").LocalPlayer
-
       if Value then
-         local char = player.Character
+         local char = LocalPlayer.Character
          local hrp = char and char:FindFirstChild("HumanoidRootPart")
          if hrp then
             getgenv().SavedCFrame = hrp.CFrame
@@ -280,7 +335,7 @@ MainTab:CreateToggle({
 
          task.spawn(function()
             while getgenv().LockPosition do
-               local currentChar = player.Character
+               local currentChar = LocalPlayer.Character
                local currentHrp = currentChar and currentChar:FindFirstChild("HumanoidRootPart")
                local humanoid = currentChar and currentChar:FindFirstChildOfClass("Humanoid")
 
@@ -324,34 +379,27 @@ end
 
 task.spawn(function()
    local remoteFolder = game:GetService("ReplicatedStorage"):WaitForChild("Remote"):WaitForChild("FromLocalForServer"):WaitForChild("Get")
-   local player = game:GetService("Players").LocalPlayer
 
    while true do
-      local stats = player:FindFirstChild("Stats")
+      local stats = LocalPlayer:FindFirstChild("Stats")
       local levelObj = stats and stats:FindFirstChild("Level")
 
       if levelObj then
          for i = 1, 6 do
             if getgenv()["AutoSac" .. i] then
-               local remoteName = "sac" .. i
-               local targetRemote = remoteFolder:FindFirstChild(remoteName)
-               if targetRemote then
-                  targetRemote:FireServer()
-               end
+               local targetRemote = remoteFolder:FindFirstChild("sac" .. i)
+               if targetRemote then targetRemote:FireServer() end
             end
          end
 
          for i = 1, 6 do
             if getgenv()["AutoAsc" .. i] then
-               local remoteName = "asc" .. i
-               local targetRemote = remoteFolder:FindFirstChild(remoteName)
-               if targetRemote then
-                  targetRemote:FireServer()
-               end
+               local targetRemote = remoteFolder:FindFirstChild("asc" .. i)
+               if targetRemote then targetRemote:FireServer() end
             end
          end
       end
-      task.wait()
+      task.wait(0.3)
    end
 end)
 
@@ -406,10 +454,7 @@ local function solveAndAnswer(messageText)
 
             SolutionLabel:Set(string.format("%s = %s | Reward: %s", cleanExpression, response, rewardText))
 
-            local finalOutput = response
-            if getgenv().HideAnswer then
-               finalOutput = "/e " .. response
-            end
+            local finalOutput = getgenv().HideAnswer and ("/e " .. response) or response
 
             local TextChatService = game:GetService("TextChatService")
             local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
@@ -440,7 +485,7 @@ local addFolder = Workspace:FindFirstChild("Add")
 if addFolder then
    addFolder.DescendantAdded:Connect(function(upg)
       if getgenv().AutoSolution and upg:IsA("BasePart") and upg:FindFirstChild("TouchInterest") then
-         local char = Players.LocalPlayer.Character
+         local char = LocalPlayer.Character
          if char then
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if hrp then
@@ -462,7 +507,9 @@ MainTab:CreateToggle({
    end,
 })
 
--- --- TAB TELEPORT ---
+-- =========================================================================
+-- [ TAB TELEPORT ]
+-- =========================================================================
 local TPTab = Window:CreateTab("🌐 Teleport", 4483362458)
 local locations = {
    ["World 1"] = Vector3.new(-13, 4, -82),
@@ -484,7 +531,9 @@ for _, name in ipairs(sortedWorlds) do
    })
 end
 
--- --- TAB PLAYERS ---
+-- =========================================================================
+-- [ TAB PLAYERS ]
+-- =========================================================================
 local PlayerTab = Window:CreateTab("🌐 Players", 4483362458)
 PlayerTab:CreateSlider({
    Name = "⚡️ Walkspeed",
@@ -493,7 +542,12 @@ PlayerTab:CreateSlider({
    Suffix = "Speed",
    CurrentValue = 16,
    Flag = "WS_Slider",
-   Callback = function(Value) getgenv().WS_Value = Value end,
+   Callback = function(Value) 
+      getgenv().WS_Value = Value 
+      local char = LocalPlayer.Character
+      local hum = char and char:FindFirstChildOfClass("Humanoid")
+      if hum then hum.WalkSpeed = Value end
+   end,
 })
 
 PlayerTab:CreateSlider({
@@ -503,54 +557,202 @@ PlayerTab:CreateSlider({
    Suffix = "Power",
    CurrentValue = 50,
    Flag = "JP_Slider",
-   Callback = function(Value) getgenv().JP_Value = Value end,
+   Callback = function(Value) 
+      getgenv().JP_Value = Value 
+      local char = LocalPlayer.Character
+      local hum = char and char:FindFirstChildOfClass("Humanoid")
+      if hum then hum.JumpPower = Value end
+   end,
 })
 
 local function ApplyCustomStats(character)
    local humanoid = character:WaitForChild("Humanoid", 5)
    if not humanoid then return end
 
-   -- Khóa Walkspeed khi có thay đổi từ phía Game
    humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
       if getgenv().WS_Value ~= nil and humanoid.WalkSpeed ~= getgenv().WS_Value then
          humanoid.WalkSpeed = getgenv().WS_Value
       end
    end)
 
-   -- Khóa Jumppower khi có thay đổi từ phía Game
    humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
       if getgenv().JP_Value ~= nil and humanoid.JumpPower ~= getgenv().JP_Value then
          humanoid.JumpPower = getgenv().JP_Value
       end
    end)
 
-   -- Kích hoạt ngay lập tức khi vừa hồi sinh
    if getgenv().WS_Value ~= nil then humanoid.WalkSpeed = getgenv().WS_Value end
    if getgenv().JP_Value ~= nil then humanoid.JumpPower = getgenv().JP_Value end
 end
 
--- Theo dõi mỗi khi nhân vật hồi sinh (Reset nhân vật không bị mất Hack Speed)
 if LocalPlayer.Character then ApplyCustomStats(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(ApplyCustomStats)
 
--- Cập nhật thời gian thực khi bạn kéo Slider
-local OldWSCallback = Rayfield.Flags["WS_Slider"].Callback
-Rayfield.Flags["WS_Slider"].Callback = function(Value)
-   getgenv().WS_Value = Value
-   local char = LocalPlayer.Character
-   local hum = char and char:FindFirstChildOfClass("Humanoid")
-   if hum then hum.WalkSpeed = Value end
-end
+-- =========================================================================
+-- [ TAB AFK & GRAPHICS ]
+-- =========================================================================
+local AFKTab = Window:CreateTab("💤 AFK Mode", 4483362458)
 
-local OldJPCallback = Rayfield.Flags["JP_Slider"].Callback
-Rayfield.Flags["JP_Slider"].Callback = function(Value)
-   getgenv().JP_Value = Value
-   local char = LocalPlayer.Character
-   local hum = char and char:FindFirstChildOfClass("Humanoid")
-   if hum then hum.JumpPower = Value end
-end
+local UIFPSLabel = AFKTab:CreateLabel("Current Hub FPS: --")
 
--- --- TAB CREDITS ---
+-- HỆ THỐNG ĐẾM FPS CHUẨN 0.1s
+local frameCount = 0
+local elapsedTime = 0
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    frameCount = frameCount + 1
+    elapsedTime = elapsedTime + deltaTime
+    
+    if elapsedTime >= 0.1 then
+        local currentFPS = math.floor(frameCount / elapsedTime)
+        
+        UIFPSLabel:Set("Current Hub FPS: " .. currentFPS)
+        if BlackFrameGui.Enabled then
+            BlackFPSLabel.Text = "Current FPS: " .. currentFPS
+        end
+        
+        frameCount = 0
+        elapsedTime = 0
+    end
+end)
+
+AFKTab:CreateSection("— Graphics & Optimization —")
+
+AFKTab:CreateToggle({
+   Name = "📉 Force Graphics to Lowest",
+   CurrentValue = false,
+   Flag = "LowGraphicsFlag",
+   Callback = function(Value)
+      getgenv().LowGraphics = Value
+      if Value then
+         pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+      else
+         pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic end)
+      end
+   end,
+})
+
+AFKTab:CreateButton({
+   Name = "🗑️ Clear Map Textures",
+   Callback = function()
+      pcall(function()
+         for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Texture") or obj:IsA("Decal") or obj:IsA("Sky") then
+               obj:Destroy()
+            elseif obj:IsA("BasePart") then
+               obj.Material = Enum.Material.SmoothPlastic
+            end
+         end
+         Rayfield:Notify({Title = "AFK Optimizer", Content = "All textures and decals cleared!", Duration = 3})
+      end)
+   end,
+})
+
+AFKTab:CreateToggle({
+   Name = "🌙 Night Time Mode",
+   CurrentValue = false,
+   Flag = "NightTimeFlag",
+   Callback = function(Value)
+      getgenv().NightTimeMode = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().NightTimeMode do
+               game:GetService("Lighting").ClockTime = 0
+               task.wait(1)
+            end
+         end)
+      else
+         game:GetService("Lighting").ClockTime = 12
+      end
+   end,
+})
+
+AFKTab:CreateSection("— FPS Engine Controller —")
+
+AFKTab:CreateToggle({
+    Name = "🚀 Enable FPS Limit",
+    CurrentValue = false,
+    Flag = "EnableFPSLimitFlag",
+    Callback = function(Value)
+        getgenv().EnableFPSLimit = Value
+        if Value then
+            if setfpscap then 
+                pcall(function() setfpscap(getgenv().TargetFPS) end)
+            end
+        else
+            if setfpscap then 
+                pcall(function() setfpscap(60) end)
+            end
+        end
+    end,
+})
+
+AFKTab:CreateInput({
+    Name = "⌨️ Set FPS Value",
+    PlaceholderText = "E.g. 30, 45, 60",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num and num > 0 then 
+            getgenv().TargetFPS = num
+            if getgenv().EnableFPSLimit and setfpscap then 
+                pcall(function() setfpscap(num) end)
+            end
+        end
+    end,
+})
+
+AFKTab:CreateSection("— Black Screen Mode —")
+
+AFKTab:CreateToggle({
+   Name = "🖥️ Disable 3D Rendering (Black Screen Fix)",
+   CurrentValue = false,
+   Flag = "Disable3DFlag",
+   Callback = function(Value)
+      BlackFrameGui.Enabled = Value
+      if Value then
+         AFKStartTime = os.time()
+         pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+      end
+   end,
+})
+
+AFKTab:CreateSection("— Auto-AFK (Anti-Disconnect) —")
+
+AFKTab:CreateToggle({
+   Name = "🦘 Auto Jump",
+   CurrentValue = false,
+   Flag = "AutoJumpFlag",
+   Callback = function(Value)
+      getgenv().AutoJumpAFK = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoJumpAFK do
+               local char = LocalPlayer.Character
+               local hum = char and char:FindFirstChildOfClass("Humanoid")
+               if hum and hum.FloorMaterial ~= Enum.Material.Air then
+                  hum:ChangeState(Enum.HumanoidStateType.Jumping)
+               end
+               task.wait(getgenv().AutoJumpDelay)
+            end
+         end)
+      end
+   end,
+})
+
+AFKTab:CreateInput({
+   Name = "⏱️ Delay Auto Jump (Seconds)",
+   PlaceholderText = "Default: 5",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      getgenv().AutoJumpDelay = (num and num > 0) and num or 5
+   end,
+})
+
+-- =========================================================================
+-- [ TAB CREDITS ]
+-- =========================================================================
 local CreditTab = Window:CreateTab("👤 Credits", 4483362458) 
 CreditTab:CreateParagraph({
     Title = "👤 Creator Information", 
@@ -561,14 +763,16 @@ CreditTab:CreateParagraph({
     Content = "Thank for using my script! If you see any issue in this script, comment it on Scriptblox web. Love you all!"
 })
 
--- --- TAB SETTINGS (ENGLISH INTERFACE) ---
+-- =========================================================================
+-- [ TAB SETTINGS ]
+-- =========================================================================
 local SettingsTab = Window:CreateTab("⚙️ Settings", 4483362458)
 SettingsTab:CreateSection("🎨 Theme Customization")
 local ThemeStatusLabel = SettingsTab:CreateLabel("Current Theme: [" .. currentTheme .. "]")
 
 SettingsTab:CreateDropdown({
     Name = "Select Preset Theme",
-    Options = {"Default", "AmberGlow", "Ocean", "Green", "Serenity", "Light"}, -- Sửa lỗi viết liền tên theme ở đây
+    Options = {"Default", "AmberGlow", "Ocean", "Green", "Serenity", "Light"}, 
     CurrentOption = {savedTheme},
     MultipleOptions = false,
     Callback = function(Option)
@@ -666,30 +870,10 @@ pcall(function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Webhook%20Logger%20Discord"))()
 end)
 
--- --- HỆ THỐNG CHAT TAG AN TOÀN CHO TÀI KHOẢN PHỤ ---
-task.spawn(function()
-    local TextChatService = game:GetService("TextChatService")
-    local TargetUserId = 11210439836
-    local TagText = '<font color="#000000"><b>[👑Owner\'s alt👑]</b></font>'
-    local TagColor = '#FFD700' 
-
-    local function HandleIncomingMessage(message)
-        local properties = Instance.new("TextChatMessageProperties")
-        if message.TextSource and message.TextSource.UserId == TargetUserId then
-            properties.PrefixText = '<font color="' .. TagColor .. '">' .. TagText .. '</font> ' .. message.PrefixText
-        end
-        return properties
-    end
-
-    task.defer(function()
-        TextChatService.OnIncomingMessage = HandleIncomingMessage
-    end)
-end)
-
 -- Thông báo kích hoạt thành công
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v1.1.5 Official",
+   Content = "Version: v1.2.0 Official",
    Duration = 5,
    Image = 4483362458,
 })

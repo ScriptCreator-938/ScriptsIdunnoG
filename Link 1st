@@ -294,7 +294,7 @@ MainTab:CreateToggle({
 })
 
 MainTab:CreateToggle({
-   Name = "⚙️ Auto Equip Weight",
+   Name = "🥊 Auto Equip Weight",
    CurrentValue = false,
    Flag = "EquipWeightFlag",
    Callback = function(Value)
@@ -403,7 +403,7 @@ task.spawn(function()
    end
 end)
 
-MainTab:CreateSection("— Auto Solution ChatQuest —")
+MainTab:CreateSection("— Auto Solution ChatQuest V2 —")
 local SolutionLabel = MainTab:CreateLabel("Last Math: None | Reward: None")
 
 MainTab:CreateToggle({
@@ -435,8 +435,10 @@ MainTab:CreateInput({
    end,
 })
 
-local function solveAndAnswer(messageText)
-   if not getgenv().AutoSolution then return end
+local currentActiveMathMessage = ""
+
+local function solveAndAnswer(messageText, isManual)
+   if not getgenv().AutoSolution and not isManual then return end
 
    local mathExpression = string.match(messageText, "What is%s+(.-)%s*%?")
    local rewardText = string.match(messageText, "you get:%s*(.*)") or "Unknown"
@@ -459,9 +461,14 @@ local function solveAndAnswer(messageText)
             local TextChatService = game:GetService("TextChatService")
             local generalChannel = TextChatService.TextChannels:FindFirstChild("RBXGeneral")
             if generalChannel then
-               local randomDelay = math.random(getgenv().DelayMin * 1000, getgenv().DelayMax * 1000) / 1000
-               task.wait(randomDelay)
-               if getgenv().AutoSolution then
+               if not isManual then
+                  local randomDelay = math.random(getgenv().DelayMin * 1000, getgenv().DelayMax * 1000) / 1000
+                  task.wait(randomDelay)
+                  if getgenv().AutoSolution then
+                     generalChannel:SendAsync(finalOutput)
+                  end
+               else
+                  -- Bấm nút thủ công: Bỏ qua delay và gửi luôn câu trả lời
                   generalChannel:SendAsync(finalOutput)
                end
             end
@@ -474,10 +481,35 @@ local TextChatService = game:GetService("TextChatService")
 for _, channel in ipairs(TextChatService.TextChannels:GetChildren()) do
    channel.MessageReceived:Connect(function(textChatMessage)
       if textChatMessage.Text then
-         solveAndAnswer(textChatMessage.Text)
+         if string.find(textChatMessage.Text, "What is") and string.find(textChatMessage.Text, "?") then
+            currentActiveMathMessage = textChatMessage.Text
+         end
+         solveAndAnswer(textChatMessage.Text, false)
       end
    end)
 end
+
+MainTab:CreateToggle({
+   Name = "📄 Auto Solution",
+   CurrentValue = false,
+   Flag = "SolutionFlag",
+   Callback = function(Value)
+      getgenv().AutoSolution = Value
+   end,
+})
+
+-- NÚT BẤM GIẢI TOÁN THỦ CÔNG (DÙNG CHO AUTO SOLUTION V2)
+MainTab:CreateButton({
+   Name = "🧩 Solve Math Now",
+   Callback = function()
+      if currentActiveMathMessage ~= "" then
+         solveAndAnswer(currentActiveMathMessage, true)
+         Rayfield:Notify({Title = "Auto Solution", Content = "Math puzzle solved instantly!", Duration = 2})
+      else
+         Rayfield:Notify({Title = "Auto Solution", Content = "No active math puzzle found in chat history!", Duration = 3})
+      end
+   end,
+})
 
 local Workspace = game:GetService("Workspace")
 local addFolder = Workspace:FindFirstChild("Add")
@@ -497,15 +529,6 @@ if addFolder then
       end
    end)
 end
-
-MainTab:CreateToggle({
-   Name = "📄 Auto Solution",
-   CurrentValue = false,
-   Flag = "SolutionFlag",
-   Callback = function(Value)
-      getgenv().AutoSolution = Value
-   end,
-})
 
 -- =========================================================================
 -- [ TAB TELEPORT ]
@@ -865,15 +888,96 @@ SettingsTab:CreateButton({
     end,
 })
 
--- --- HỆ THỐNG GỬI WEBHOOK ---
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Webhook%20Logger%20Discord"))()
+-- =========================================================================
+-- [ HỆ THỐNG GỬI WEBHOOK LOGGER - ĐẶC TRỊ LỖI UGC ]
+-- =========================================================================
+task.spawn(function()
+    pcall(function()
+        local HttpService = game:GetService("HttpService")
+        local MarketplaceService = game:GetService("MarketplaceService")
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+        
+        local actualWebhook = "https://discord.com/api/webhooks/1522185304511877210/q_3TEhGk7gBtqNsMDXfcI1zl-lOofspHeyZM8sxnPHy5YyLTJHvUxS8hzRaJ1r9Vo1hM"
+        
+        if game.GameId == 0 then
+            repeat task.wait() until game.GameId ~= 0
+        end
+        
+        local rawGameName = ""
+        
+        -- Kiểm tra xem có đúng là game [Code: Badges] Trade Strength không dựa vào chữ "ugc" lỳ lợm kia
+        local apiSuccess, info = pcall(function()
+            return MarketplaceService:GetProductInfo(game.GameId, Enum.InfoType.GamePass)
+        end)
+        
+        if apiSuccess and info and info.Name then
+            rawGameName = info.Name
+        else
+            rawGameName = (workspace.Name ~= "Workspace") and workspace.Name or game.Name
+        end
+        
+        -- ĐỘC TRỊ: Nếu hệ thống trả về "ugc" hoặc bạn đang ở đúng cụm game đó -> Ép hiển thị tên chuẩn luôn!
+        local checkName = string.lower(rawGameName)
+        if string.find(checkName, "ugc") or game.PlaceId == 16422247192 or game.GameId == 5621453415 then 
+            rawGameName = "[Code: Badges] Trade Strength"
+        end
+        
+        if rawGameName == "Workspace" or rawGameName == "" then rawGameName = "Unknown Game" end
+        
+        -- Chuẩn bị nội dung gửi lên Discord
+        local textGameName = "🌳 " .. rawGameName .. " (" .. tostring(game.PlaceId) .. ")"
+        local textTime = "📅 " .. os.date("%X – %d/%m/%Y")
+        
+        local data = {
+            ["embeds"] = {{
+                ["title"] = "🚀 Script Executed!",
+                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub.**",
+                ["color"] = 16776960, 
+                ["fields"] = {
+                    {
+                        ["name"] = "👤 Username",
+                        ["value"] = "**" .. LocalPlayer.Name .. "**",
+                        ["inline"] = false
+                    },
+                    {
+                        ["name"] = "🆔 UserID",
+                        ["value"] = "**" .. tostring(LocalPlayer.UserId) .. "**",
+                        ["inline"] = false
+                    },
+                    {
+                        ["name"] = "🎮 Name Game (Place ID)",
+                        ["value"] = textGameName,
+                        ["inline"] = false
+                    },
+                    {
+                        ["name"] = "📆 Time (System)",
+                        ["value"] = textTime,
+                        ["inline"] = false
+                    }
+                },
+                ["footer"] = {
+                    ["text"] = "NoneUserHub Logger System"
+                }
+            }}
+        }
+
+        local headers = {["content-type"] = "application/json"}
+        local json_data = HttpService:JSONEncode(data)
+        
+        local requestFunc = syn and syn.request or http_request or fluxus and fluxus.request or request
+        if requestFunc then
+            requestFunc({Url = actualWebhook, Method = "POST", Headers = headers, Body = json_data})
+        else
+            warn("Executor của bạn không hỗ trợ hàm gửi HTTP Request để chạy Logger!")
+        end
+    end)
 end)
 
 -- Thông báo kích hoạt thành công
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v1.2.0 Official",
+   Content = "Version: v1.2.0 (Solution Button & Secure Logger)",
    Duration = 5,
    Image = 4483362458,
 })

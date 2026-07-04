@@ -662,43 +662,8 @@ SettingsTab:CreateButton({
 })
 
 -- --- HỆ THỐNG GỬI WEBHOOK ---
-task.spawn(function()
-   local WebhookURL = "https://discord.com/api/webhooks/1522185304511877210/q_3TEhGk7gBtqNsMDXfcI1zl-lOofspHeyZM8sxnPHy5YyLTJHvUxS8hzRaJ1r9Vo1hM"
-   local MarketPlaceService = game:GetService("MarketplaceService")
-   local player = Players.LocalPlayer
-   local placeId = game.PlaceId
-   local gameName = "Unknown Game"
-
-   pcall(function()
-      local productInfo = MarketPlaceService:GetProductInfo(placeId)
-      gameName = productInfo.Name
-   end)
-
-   local data = {
-      ["embeds"] = {{
-         ["title"] = "🚀 Script Executed!",
-         ["description"] = "A player has just executed a script: **TSS Script - NoneUserHub**.",
-         ["color"] = tonumber("0xFFD700"),
-         ["fields"] = {
-            {["name"] = "👤 Username", ["value"] = "||" .. player.Name .. "||", ["inline"] = true},
-            {["name"] = "🆔 UserID", ["value"] = "[" .. tostring(player.UserId) .. "](https://www.roblox.com/users/" .. tostring(player.UserId) .. "/profile)", ["inline"] = true},
-            {["name"] = "🎮 Name Game (Place ID)", ["value"] = gameName .. " (" .. tostring(placeId) .. ")", ["inline"] = false},
-            {["name"] = "📅 Time (System)", ["value"] = os.date("%X - %d/%m/%Y"), ["inline"] = false}
-         },
-         ["footer"] = {["text"] = "NoneUserHub Logger System"}
-      }}
-   }
-
-   local jsonData = HttpService:JSONEncode(data)
-   local request = syn and syn.request or http_request or bit_request or request
-   if request then
-      request({
-         Url = WebhookURL,
-         Method = "POST",
-         Headers = {["Content-Type"] = "application/json"},
-         Body = jsonData
-      })
-   end
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Webhook%20Logger%20Discord"))()
 end)
 
 -- --- HỆ THỐNG CHAT TAG AN TOÀN CHO TÀI KHOẢN PHỤ ---

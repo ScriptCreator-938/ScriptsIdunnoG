@@ -977,7 +977,7 @@ end)
 -- Thông báo kích hoạt thành công
 Rayfield:Notify({
    Title = "Update Success!",
-   Content = "Version: v1.2.0 (Solution Button & Secure Logger)",
+   Content = "Version: v1.2.0",
    Duration = 5,
    Image = 4483362458,
 })

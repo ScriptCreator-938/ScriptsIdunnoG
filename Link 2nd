@@ -1,11 +1,12 @@
--- [[ ULTIMATE MOBILE MULTI-TAB MENU - INTEGRATED INSTANT RAPID FIRE ]] --
--- Premium Edition upgraded for Scriptblox Publishing
+-- [[ ULTIMATE MOBILE MULTI-TAB MENU - INTEGRATED ADVANCED STATUS & EXPANDED SCP CORES ]] --
+-- Premium Edition v3.1 with Self-View Target Player Status Analytics & SCP-049 Variants Support
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local Teams = game:GetService("Teams")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -37,6 +38,25 @@ getgenv().ShowInfo = false
 getgenv().ShowSCPNum = false
 getgenv().TpWalkEnabled = false
 getgenv().WalkSpeed = 25
+
+-- CBRING V2 & SCP LOCK CONFIGURATION
+getgenv().TargetPlayerInput = ""
+getgenv().LockPlayerEnabled = false
+getgenv().TargetTeamSelection = "Enemies"
+getgenv().LockTeamEnabled = false
+
+getgenv().TargetSCPNumber = ""      
+getgenv().LockSCPEnabled = false    
+
+-- Biến kiểm soát thời gian chờ (1 giây Delay) an toàn
+local PlayerLockReady = false
+local TeamLockReady = false
+local ScpLockReady = false
+
+-- Vị trí khóa cứng cho Cbring V2
+local LockedPlayerPositions = {}
+local LockedTeamPositions = {}
+local LockedScpPositions = {}
 
 local OriginalHitboxes = {}
 local FOVCircle = Drawing.new("Circle")
@@ -94,6 +114,31 @@ if not getgenv()._origFire then
     setreadonly(mt, true)
 end
 
+-- Helper: Get Player Target by Smart Username Match (Loại trừ bản thân cho dịch chuyển)
+local function getSmartTargetPlayer(str)
+    if str == "" then return nil end
+    str = string.lower(str)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and (string.sub(string.lower(player.Name), 1, #str) == str or string.sub(string.lower(player.DisplayName), 1, #str) == str) then
+            return player
+        end
+    end
+    return nil
+end
+
+-- Helper: Get SCP Model by Number String
+local function getSCPModelByNumber(numStr)
+    if numStr == "" then return nil end
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") then
+            if string.match(obj.Name, "^SCP%-" .. numStr) then
+                return obj
+            end
+        end
+    end
+    return nil
+end
+
 -- Game Team & Faction Logic
 local function getPlayerRole(player)
     if not player or not player.Character then return "Unknown" end
@@ -125,17 +170,91 @@ local function isVisible(targetPart)
 end
 
 -- ==========================================
--- VISUALS: ESP CHAMS & BILLBOARD ENGINE
+-- CBRING & POSITION LOCK MOTOR ENGINE
 -- ==========================================
-local function getModelColorAndName(model)
-    local ply = Players:GetPlayerFromCharacter(model)
-    if ply then
-        local tColor = ply.TeamColor and ply.TeamColor.Color or Color3.new(1, 1, 1)
-        return tColor, ply.DisplayName
+local function cbringCharacter(targetChar)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChildOfClass("Humanoid") and targetChar:FindFirstChildOfClass("Humanoid").Health > 0 then
+            local myHrp = LocalPlayer.Character.HumanoidRootPart
+            local targetHrp = targetChar.HumanoidRootPart
+            targetHrp.CFrame = myHrp.CFrame * CFrame.new(0, 0, -4)
+        end
     end
-    return Color3.fromRGB(255, 50, 50), model.Name
 end
 
+RunService.Heartbeat:Connect(function()
+    -- 1. Lock Player Logic
+    if getgenv().LockPlayerEnabled then
+        if PlayerLockReady then
+            local p = getSmartTargetPlayer(getgenv().TargetPlayerInput)
+            if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if not LockedPlayerPositions[p.Name] then
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LockedPlayerPositions[p.Name] = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4)
+                    else
+                        LockedPlayerPositions[p.Name] = p.Character.HumanoidRootPart.CFrame
+                    end
+                end
+                p.Character.HumanoidRootPart.CFrame = LockedPlayerPositions[p.Name]
+            end
+        end
+    else
+        PlayerLockReady = false
+        table.clear(LockedPlayerPositions)
+    end
+
+    -- 2. Lock Team Logic
+    if getgenv().LockTeamEnabled then
+        if TeamLockReady then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local shouldBring = false
+                    if getgenv().TargetTeamSelection == "Enemies" then
+                        if player.Team ~= LocalPlayer.Team then shouldBring = true end
+                    else
+                        if player.Team and player.Team.Name == getgenv().TargetTeamSelection then shouldBring = true end
+                    end
+                    
+                    if shouldBring then
+                        if not LockedTeamPositions[player.Name] then
+                            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                LockedTeamPositions[player.Name] = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4)
+                            else
+                                LockedTeamPositions[player.Name] = player.Character.HumanoidRootPart.CFrame
+                            end
+                        end
+                        player.Character.HumanoidRootPart.CFrame = LockedTeamPositions[player.Name]
+                    end
+                end
+            end
+        end
+    else
+        TeamLockReady = false
+        table.clear(LockedTeamPositions)
+    end
+
+    -- 3. Lock SCP Logic
+    if getgenv().LockSCPEnabled then
+        if ScpLockReady then
+            local scpModel = getSCPModelByNumber(getgenv().TargetSCPNumber)
+            if scpModel and scpModel:FindFirstChild("HumanoidRootPart") then
+                if not LockedScpPositions[scpModel.Name] then
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LockedScpPositions[scpModel.Name] = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
+                    else
+                        LockedScpPositions[scpModel.Name] = scpModel.HumanoidRootPart.CFrame
+                    end
+                end
+                scpModel.HumanoidRootPart.CFrame = LockedScpPositions[scpModel.Name]
+            end
+        end
+    else
+        ScpLockReady = false
+        table.clear(LockedScpPositions)
+    end
+end)
+
+-- Visuals: ESP Chams Render Loop
 RunService.RenderStepped:Connect(function()
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Model") and obj ~= LocalPlayer.Character and obj:FindFirstChild("Head") then
@@ -151,7 +270,10 @@ RunService.RenderStepped:Connect(function()
                     hl.Parent = obj
                 end
                 
-                local modelColor, displayName = getModelColorAndName(obj)
+                local ply = Players:GetPlayerFromCharacter(obj)
+                local modelColor = ply and ply.TeamColor and ply.TeamColor.Color or Color3.fromRGB(255, 50, 50)
+                local displayName = ply and ply.DisplayName or obj.Name
+                
                 hl.FillColor = modelColor
                 hl.OutlineColor = modelColor
                 hl.Enabled = true
@@ -186,7 +308,7 @@ RunService.RenderStepped:Connect(function()
                     end
                     
                     if getgenv().ShowSCPNum and isSCP then
-                        displayText = "[" .. string.match(obj.Name, "^SCP%-%d+") .. "]\n"
+                        displayText = "[" .. string.match(obj.Name, "^SCP%-%d+[^%s]*") .. "]\n"
                     end
                     
                     if getgenv().ShowInfo then
@@ -206,9 +328,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==========================================
--- MOVEMENT: TPWALK MOTOR SPEED
--- ==========================================
+-- Movement: TPWalk Speed Motor
 RunService.Heartbeat:Connect(function()
     if getgenv().TpWalkEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         local humanoid = LocalPlayer.Character.Humanoid
@@ -218,7 +338,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- RenderStepped Aimbot Loop
+-- Aimbot Core Frame Stepper
 RunService.RenderStepped:Connect(function()
     local screenSize = Camera.ViewportSize
     local centerScreen = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
@@ -255,7 +375,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Hitbox Expansion Engine
+-- Hitbox Expander Task Loop
 task.spawn(function()
     while task.wait(0.5) do
         for _, player in ipairs(Players:GetPlayers()) do
@@ -351,11 +471,11 @@ TitleText.Position = UDim2.new(0, 50, 0, 0)
 TitleText.Text = "P1: WEAPON MODS"
 TitleText.TextColor3 = Color3.fromRGB(0, 255, 150)
 TitleText.Font = Enum.Font.GothamBold
-TitleText.TextSize = 13
+TitleText.TextSize = 12
 TitleText.BackgroundTransparency = 1
 TitleText.Parent = TitleBar
 
--- Circular Open Floating Button
+-- Open UI Floating Toggle
 local OpenBtn = Instance.new("TextButton")
 OpenBtn.Name = "OpenBtn"
 OpenBtn.Size = UDim2.new(0, 55, 0, 55)
@@ -396,8 +516,10 @@ local Page1 = createPage("WeaponMods", false)
 local Page2 = createPage("Aimbot", false)
 local Page3 = createPage("Hitbox", false)
 local Page4 = createPage("VisualsMovement", true)
+local Page5 = createPage("CbringV2", true)
+local Page6 = createPage("PlayerStatus", true)
 
-local PageTitles = {"P1: WEAPON MODS", "P2: AIMBOT CONFIG", "P3: HITBOX EXPAN", "P4: ESP & MOVEMENT"}
+local PageTitles = {"P1: WEAPON MODS", "P2: AIMBOT CONFIG", "P3: HITBOX EXPAN", "P4: ESP & MOVEMENT", "P5: CBRING V2", "P6: PLAYER STATUS"}
 local function showPage(index)
     for i, p in ipairs(Pages) do p.Visible = (i == index) end
     TitleText.Text = PageTitles[index] or ""
@@ -435,7 +557,6 @@ TitleBar.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then Dragging = false end
 end)
 
--- Animation Minimize Mechanics
 local savedSize = MainFrame.Size
 MinBtn.MouseButton1Click:Connect(function()
     local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
@@ -458,7 +579,7 @@ OpenBtn.MouseButton1Click:Connect(function()
     }):Play()
 end)
 
--- UI Builders & Core Layout Generators
+-- UI Builders Helpers
 local function createToggle(parent, text, posY, globalVarName)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(0.9, 0, 0, 35)
@@ -484,10 +605,53 @@ local function createToggle(parent, text, posY, globalVarName)
     return Btn
 end
 
+-- Custom Special Toggle Helper (For Safe Delay Lock UI Feedback)
+local function createDelayToggle(parent, text, globalVarName, readyFlagName)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0.9, 0, 0, 35)
+    Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    Btn.Text = text .. ": OFF"
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 11
+    Btn.Parent = parent
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+
+    Btn.MouseButton1Click:Connect(function()
+        getgenv()[globalVarName] = not getgenv()[globalVarName]
+        if getgenv()[globalVarName] then
+            Btn.Text = "PREPARING (1s)..."
+            Btn.BackgroundColor3 = Color3.fromRGB(230, 120, 0) 
+            
+            task.wait(1.0) 
+            
+            if getgenv()[globalVarName] then 
+                _G[readyFlagName] = true
+                Btn.Text = text .. ": LOCKED ON"
+                Btn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+            end
+        else
+            _G[readyFlagName] = false
+            Btn.Text = text .. ": OFF"
+            Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        end
+    end)
+    
+    local checker = task.spawn(function()
+        while task.wait(0.1) do
+            if globalVarName == "LockPlayerEnabled" then PlayerLockReady = _G[readyFlagName] or false end
+            if globalVarName == "LockTeamEnabled" then TeamLockReady = _G[readyFlagName] or false end
+            if globalVarName == "LockSCPEnabled" then ScpLockReady = _G[readyFlagName] or false end
+        end
+    end)
+    
+    return Btn
+end
+
 local function createTextBox(parent, labelText, placeholder, posY)
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(0.9, 0, 0, 35)
-    Frame.Position = UDim2.new(0.05, 0, 0, posY)
+    if posY then Frame.Position = UDim2.new(0.05, 0, 0, posY) end
     Frame.BackgroundTransparency = 1
     Frame.Parent = parent
 
@@ -513,13 +677,11 @@ local function createTextBox(parent, labelText, placeholder, posY)
     Box.Parent = Frame
     Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
 
-    -- Fade and Glow Input Effect on Enter (FocusLost)
     Box.FocusLost:Connect(function(enterPressed)
         if enterPressed then
             local currentBg = Box.BackgroundColor3
             Box.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
             Box.BackgroundTransparency = 0.2
-            
             local fadeTween = TweenService:Create(Box, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {
                 BackgroundColor3 = currentBg,
                 BackgroundTransparency = 0
@@ -527,8 +689,20 @@ local function createTextBox(parent, labelText, placeholder, posY)
             fadeTween:Play()
         end
     end)
-
     return Box
+end
+
+local function createActionButton(parent, text, bgColor)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(0.9, 0, 0, 35)
+    Btn.BackgroundColor3 = bgColor
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 11
+    Btn.Parent = parent
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    return Btn
 end
 
 -- ==========================================
@@ -555,7 +729,6 @@ RFInputBox:GetPropertyChangedSignal("Text"):Connect(function()
     if val and val >= 1 then getgenv().rapidFire = math.floor(val) end
 end)
 
--- Scroll Container for Static Module Modifications
 local Scroll = Instance.new("ScrollingFrame")
 Scroll.Size = UDim2.new(1, 0, 1, -165)
 Scroll.Position = UDim2.new(0, 0, 0, 120)
@@ -571,11 +744,10 @@ local GunBoxes = {}
 for _, stat in ipairs(TargetStats) do GunBoxes[stat] = createTextBox(Scroll, stat, "Enter value...", 0) end
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 210)
 
--- Glowing Apply Changes Button Component
 local ModGunBtn = Instance.new("TextButton")
 ModGunBtn.Size = UDim2.new(0.9, 0, 0, 35)
 ModGunBtn.Position = UDim2.new(0.05, 0, 1, -40)
-ModGunBtn.BackgroundColor3 = Color3.fromRGB(220, 30, 30) -- Deep Red
+ModGunBtn.BackgroundColor3 = Color3.fromRGB(220, 30, 30)
 ModGunBtn.Text = "APPLY MODULE CHANGES"
 ModGunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ModGunBtn.Font = Enum.Font.GothamBold
@@ -587,26 +759,16 @@ ModGunBtn.MouseButton1Click:Connect(function()
         local num = tonumber(box.Text)
         if num then
             for _, gunData in pairs(RawStats) do 
-                if type(gunData) == "table" and gunData[stat] ~= nil then 
-                    gunData[stat] = num 
-                end 
+                if type(gunData) == "table" and gunData[stat] ~= nil then gunData[stat] = num end 
             end
         end
     end
-    
-    -- Visual Transition Sequence (Red -> Emerald Green)
     ModGunBtn.Text = "MODULES UPDATED!"
-    local tweenSuccess = TweenService:Create(ModGunBtn, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-        BackgroundColor3 = Color3.fromRGB(30, 200, 80)
-    })
-    tweenSuccess:Play()
-    
+    local tG = TweenService:Create(ModGunBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 200, 80)})
+    tG:Play()
     task.wait(1.0)
-    
     ModGunBtn.Text = "APPLY MODULE CHANGES"
-    TweenService:Create(ModGunBtn, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        BackgroundColor3 = Color3.fromRGB(220, 30, 30)
-    }):Play()
+    TweenService:Create(ModGunBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(220, 30, 30)}):Play()
 end)
 
 -- ==========================================
@@ -651,7 +813,6 @@ end)
 local L4 = Instance.new("UIListLayout", Page4)
 L4.Padding = UDim.new(0, 8)
 local P4 = Instance.new("UIPadding", Page4)
-P4.PaddingLeft = UDim.new(0, 0)
 P4.PaddingTop = UDim.new(0, 10)
 
 createToggle(Page4, "ESP Chams (Wallhack)", 0, "EspEnabled")
@@ -666,11 +827,254 @@ Divider.BorderSizePixel = 0
 createToggle(Page4, "TpWalk Speed Engine", 0, "TpWalkEnabled")
 local SpeedInput = createTextBox(Page4, "Walk Velocity Speed:", "25", 0)
 SpeedInput.Text = "25"
-SpeedInput:GetPropertyChangedSignal("Text"):Connect(function() 
-    getgenv().WalkSpeed = tonumber(SpeedInput.Text) or 25 
-end)
+SpeedInput:GetPropertyChangedSignal("Text"):Connect(function() getgenv().WalkSpeed = tonumber(SpeedInput.Text) or 25 end)
 
--- Auto-align layout mapping for scrolling content
 L4:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page4.CanvasSize = UDim2.new(0, 0, 0, L4.AbsoluteContentSize.Y + 25)
+end)
+
+-- ==========================================
+-- PAGE 5: CBRING V2 (ZOMBIE VARIABLE SUPPORT)
+-- ==========================================
+local L5 = Instance.new("UIListLayout", Page5)
+L5.Padding = UDim.new(0, 8)
+local P5 = Instance.new("UIPadding", Page5)
+P5.PaddingTop = UDim.new(0, 10)
+
+local UserBox = createTextBox(Page5, "Smart Search User:", "Enter name...", nil)
+UserBox:GetPropertyChangedSignal("Text"):Connect(function()
+    getgenv().TargetPlayerInput = UserBox.Text
+end)
+
+local BringPlayerBtn = createActionButton(Page5, "BRING PLAYER (INSTANT)", Color3.fromRGB(150, 50, 200))
+BringPlayerBtn.MouseButton1Click:Connect(function()
+    local target = getSmartTargetPlayer(getgenv().TargetPlayerInput)
+    if target and target.Character then
+        cbringCharacter(target.Character)
+        BringPlayerBtn.Text = "TELEPORTED: " .. string.upper(target.Name)
+        task.wait(0.8)
+        BringPlayerBtn.Text = "BRING PLAYER (INSTANT)"
+    else
+        BringPlayerBtn.Text = "PLAYER NOT FOUND!"
+        task.wait(0.8)
+        BringPlayerBtn.Text = "BRING PLAYER (INSTANT)"
+    end
+end)
+
+createDelayToggle(Page5, "Lock Player Location", "LockPlayerEnabled", "PlayerLockReady")
+
+local SpaceDivider1 = Instance.new("Frame", Page5)
+SpaceDivider1.Size = UDim2.new(0.9, 0, 0, 2)
+SpaceDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SpaceDivider1.BorderSizePixel = 0
+
+local ScpBox = createTextBox(Page5, "Enter SCP Number:", "e.g. 096, 049-2", nil)
+ScpBox:GetPropertyChangedSignal("Text"):Connect(function()
+    getgenv().TargetSCPNumber = string.match(ScpBox.Text, "[%d%-]+") or ""
+end)
+
+local BringScpBtn = createActionButton(Page5, "BRING SCP (INSTANT)", Color3.fromRGB(220, 50, 50))
+BringScpBtn.MouseButton1Click:Connect(function()
+    local scpModel = getSCPModelByNumber(getgenv().TargetSCPNumber)
+    if scpModel then
+        cbringCharacter(scpModel)
+        BringScpBtn.Text = "BROUGHT SCP-" .. getgenv().TargetSCPNumber
+        task.wait(0.8)
+        BringScpBtn.Text = "BRING SCP (INSTANT)"
+    else
+        BringScpBtn.Text = "SCP MODEL NOT FOUND!"
+        task.wait(0.8)
+        BringScpBtn.Text = "BRING SCP (INSTANT)"
+    end
+end)
+
+createDelayToggle(Page5, "Lock SCP Location", "LockSCPEnabled", "ScpLockReady")
+
+local SpaceDivider2 = Instance.new("Frame", Page5)
+SpaceDivider2.Size = UDim2.new(0.9, 0, 0, 2)
+SpaceDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SpaceDivider2.BorderSizePixel = 0
+
+local TeamSelectBtn = Instance.new("TextButton")
+TeamSelectBtn.Size = UDim2.new(0.9, 0, 0, 35)
+TeamSelectBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 75)
+TeamSelectBtn.Text = "TARGET TEAM: ENEMIES"
+TeamSelectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeamSelectBtn.Font = Enum.Font.GothamBold
+TeamSelectBtn.TextSize = 11
+TeamSelectBtn.Parent = Page5
+Instance.new("UICorner", TeamSelectBtn).CornerRadius = UDim.new(0, 6)
+
+local dynamicTeamsList = {"Enemies", "MTF"}
+for _, t in ipairs(Teams:GetTeams()) do 
+    if t.Name ~= "MTF" then table.insert(dynamicTeamsList, t.Name) end 
+end
+local currentTeamIndex = 1
+
+TeamSelectBtn.MouseButton1Click:Connect(function()
+    currentTeamIndex = currentTeamIndex + 1
+    if currentTeamIndex > #dynamicTeamsList then currentTeamIndex = 1 end
+    getgenv().TargetTeamSelection = dynamicTeamsList[currentTeamIndex]
+    TeamSelectBtn.Text = "TARGET TEAM: " .. string.upper(getgenv().TargetTeamSelection)
+end)
+
+local BringTeamBtn = createActionButton(Page5, "BRING TEAM (INSTANT)", Color3.fromRGB(180, 80, 0))
+BringTeamBtn.MouseButton1Click:Connect(function()
+    local broughtCount = 0
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local cond = false
+            if getgenv().TargetTeamSelection == "Enemies" then
+                if p.Team ~= LocalPlayer.Team then cond = true end
+            else
+                if p.Team and p.Team.Name == getgenv().TargetTeamSelection then cond = true end
+            end
+            if cond then
+                cbringCharacter(p.Character)
+                broughtCount = broughtCount + 1
+            end
+        end
+    end
+    BringTeamBtn.Text = "BROUGHT " .. broughtCount .. " PLAYERS!"
+    task.wait(1.0)
+    BringTeamBtn.Text = "BRING TEAM (INSTANT)"
+end)
+
+createDelayToggle(Page5, "Lock Team Location", "LockTeamEnabled", "TeamLockReady")
+
+L5:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Page5.CanvasSize = UDim2.new(0, 0, 0, L5.AbsoluteContentSize.Y + 25)
+end)
+
+-- ==========================================
+-- PAGE 6: PLAYER ANALYTICS STATUS (SELF-VIEW ALLOWED)
+-- ==========================================
+local L6 = Instance.new("UIListLayout", Page6)
+L6.Padding = UDim.new(0, 5)
+local P6 = Instance.new("UIPadding", Page6)
+P6.PaddingTop = UDim.new(0, 10)
+
+getgenv().StatusTargetInput = ""
+
+local SearchStatusBox = createTextBox(Page6, "Smart Search Target:", "Username...", nil)
+SearchStatusBox:GetPropertyChangedSignal("Text"):Connect(function()
+    getgenv().StatusTargetInput = SearchStatusBox.Text
+end)
+
+-- Hàm tìm kiếm riêng cho trang Status (Cho phép quét cả bản thân)
+local function getStatusTargetPlayer(str)
+    if str == "" then return nil end
+    str = string.lower(str)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if string.sub(string.lower(player.Name), 1, #str) == str or string.sub(string.lower(player.DisplayName), 1, #str) == str then
+            return player
+        end
+    end
+    return nil
+end
+
+local function createStatusLabel(parent, title)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.9, 0, 0, 24)
+    Label.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    Label.Text = " " .. title .. ": ---"
+    Label.TextColor3 = Color3.fromRGB(230, 230, 230)
+    Label.Font = Enum.Font.GothamSemibold
+    Label.TextSize = 11
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = parent
+    Instance.new("UICorner", Label).CornerRadius = UDim.new(0, 5)
+    return Label
+end
+
+local UI_UserName = createStatusLabel(Page6, "UserName")
+local UI_DisplayName = createStatusLabel(Page6, "DisplayName")
+local UI_UserID = createStatusLabel(Page6, "UserID")
+local UI_Damage = createStatusLabel(Page6, "Damage")
+local UI_IsSCP = createStatusLabel(Page6, "Is SCP")
+local UI_Team = createStatusLabel(Page6, "Team")
+local UI_Health = createStatusLabel(Page6, "Health")
+local UI_Gun = createStatusLabel(Page6, "Gun")
+
+task.spawn(function()
+    while task.wait(0.1) do
+        local target = getStatusTargetPlayer(getgenv().StatusTargetInput)
+        if target then
+            UI_UserName.Text = " UserName: " .. target.Name
+            UI_DisplayName.Text = " DisplayName: " .. target.DisplayName
+            UI_UserID.Text = " UserID: " .. tostring(target.UserId)
+            
+            local leaderboardStats = target:FindFirstChild("leaderstats")
+            local dmgValue = leaderboardStats and (leaderboardStats:FindFirstChild("Damage") or leaderboardStats:FindFirstChild("Sát thương") or leaderboardStats:FindFirstChild("Kills"))
+            UI_Damage.Text = " Damage: " .. (dmgValue and tostring(dmgValue.Value) or "0")
+            
+            local role = getPlayerRole(target)
+            if role == "SCP" then
+                UI_IsSCP.Text = " Is SCP: True"
+                UI_IsSCP.TextColor3 = Color3.fromRGB(255, 60, 60)
+            else
+                UI_IsSCP.Text = " Is SCP: False"
+                UI_IsSCP.TextColor3 = Color3.fromRGB(230, 230, 230)
+            end
+            
+            if target.Team then
+                UI_Team.Text = " Team: " .. target.Team.Name
+                UI_Team.TextColor3 = target.TeamColor.Color
+            else
+                UI_Team.Text = " Team: Không có"
+                UI_Team.TextColor3 = Color3.fromRGB(230, 230, 230)
+            end
+            
+            if target.Character and target.Character:FindFirstChildOfClass("Humanoid") then
+                local hum = target.Character:FindFirstChildOfClass("Humanoid")
+                local hp = hum.Health
+                local maxHp = hum.MaxHealth
+                local pct = (maxHp > 0) and (hp / maxHp) or 0
+                
+                UI_Health.Text = string.format(" Health: %.1f / %.1f (%d%%)", hp, maxHp, math.floor(pct * 100))
+                
+                if pct >= 0.75 then
+                    UI_Health.TextColor3 = Color3.fromRGB(50, 220, 50)
+                elseif pct >= 0.50 then
+                    UI_Health.TextColor3 = Color3.fromRGB(220, 220, 50)
+                elseif pct >= 0.25 then
+                    UI_Health.TextColor3 = Color3.fromRGB(220, 130, 30)
+                else
+                    UI_Health.TextColor3 = Color3.fromRGB(250, 50, 50)
+                end
+            else
+                UI_Health.Text = " Health: DEAD / NOT SPAWNED"
+                UI_Health.TextColor3 = Color3.fromRGB(150, 150, 150)
+            end
+            
+            local currentWeapon = "None"
+            if target.Character then
+                local tool = target.Character:FindFirstChildOfClass("Tool")
+                if tool then currentWeapon = tool.Name end
+            end
+            if currentWeapon == "None" and target:FindFirstChild("Backpack") then
+                local tools = {}
+                for _, t in ipairs(target.Backpack:GetChildren()) do
+                    if t:IsA("Tool") then table.insert(tools, t.Name) end
+                end
+                if #tools > 0 then currentWeapon = table.concat(tools, ", ") end
+            end
+            UI_Gun.Text = " Gun: " .. currentWeapon
+        else
+            UI_UserName.Text = " UserName: ---"
+            UI_DisplayName.Text = " DisplayName: ---"
+            UI_UserID.Text = " UserID: ---"
+            UI_Damage.Text = " Damage: ---"
+            UI_IsSCP.Text = " Is SCP: ---"
+            UI_Team.Text = " Team: ---"
+            UI_Team.TextColor3 = Color3.fromRGB(230, 230, 230)
+            UI_Health.Text = " Health: ---"
+            UI_Health.TextColor3 = Color3.fromRGB(230, 230, 230)
+            UI_Gun.Text = " Gun: ---"
+        end
+    end
+end)
+
+L6:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Page6.CanvasSize = UDim2.new(0, 0, 0, L6.AbsoluteContentSize.Y + 25)
 end)

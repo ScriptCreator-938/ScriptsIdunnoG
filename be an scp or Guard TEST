@@ -35,7 +35,7 @@ getgenv().WallCheckV2 = true
 -- CẤU HÌNH SILENT AIM & BOX DETECT
 getgenv().SilentAimEnabled = false
 getgenv().SilentAimTargetMode = "Nearest"
-getgenv().SilentAimBoxDetect = true -- Bật/Tắt khung Box xung quanh mục tiêu khi Detect
+getgenv().SilentAimBoxDetect = true 
 
 getgenv().HitboxEnabled = false
 getgenv().HitboxSize = 2
@@ -219,9 +219,34 @@ local function getDynamicFOVCenter()
 end
 
 -- ==========================================
+-- SMART CFRAME DOOR STATE DETECTION ENGINE
+-- ==========================================
+local openCFrame = CFrame.new(59.8265915, 3.95500302, -473.85498, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+local closeCFrame = CFrame.new(63.3348122, 3.95525694, -473.85498, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+
+local function getDoor1State(doorModel)
+    if not doorModel then return "Unknown" end
+    local door1 = doorModel:FindFirstChild("Door1")
+    if not door1 or not door1:IsA("BasePart") then return "Unknown" end
+
+    local currentCFrame = door1.CFrame
+    local distanceToOpen = (currentCFrame.Position - openCFrame.Position).Magnitude
+    local distanceToClose = (currentCFrame.Position - closeCFrame.Position).Magnitude
+
+    if distanceToOpen < 0.1 then
+        return "Open"
+    -- Kể cả khi lệch hệ số nhỏ do vật lý, nếu gần với Closed hơn Open thì coi như Closed
+    elseif distanceToClose < 0.1 or (distanceToClose < distanceToOpen and distanceToClose < 1) then
+        return "Closed"
+    else
+        return "Unknown"
+    end
+end
+
+-- ==========================================
 -- AUTO DOORS LOGIC CORE FUNCTIONS (UPDATED SMART MOTOR)
 -- ==========================================
-local function pressSpecificButton(button, maxDistance)
+local function pressSpecificButton(button, maxDistance, targetAction)
     if button and button:IsA("BasePart") then
         local clickDetector = button:FindFirstChildOfClass("ClickDetector")
         if clickDetector then
@@ -231,6 +256,20 @@ local function pressSpecificButton(button, maxDistance)
                 local distance = (button.Position - myPos).Magnitude
                 
                 if distance <= maxDistance then
+                    local parentDoor = button.Parent
+                    local doorState = getDoor1State(parentDoor)
+
+                    -- Phân tích hành động thông minh dựa theo yêu cầu của bạn
+                    if targetAction == "Open" then
+                        if doorState == "Open" then
+                            return -- Đã mở sẵn, chặn không fire ClickDetector
+                        end
+                    elseif targetAction == "Close" then
+                        if doorState == "Closed" then
+                            return -- Đã đóng sẵn, chặn không fire ClickDetector
+                        end
+                    end
+
                     fireclickdetector(clickDetector)
                 end
             end
@@ -238,16 +277,16 @@ local function pressSpecificButton(button, maxDistance)
     end
 end
 
--- Tối ưu hóa hàm interactWithDoor theo từng cấu hình khoảng cách riêng
-local function interactWithDoor(doorModel, maxDistance)
+-- Tối ưu hóa hàm interactWithDoor theo từng cấu hình khoảng cách riêng và hành động đích
+local function interactWithDoor(doorModel, maxDistance, targetAction)
     if not doorModel then return end
-    maxDistance = maxDistance or 45 -- Nếu không truyền mặc định lấy 45 studs
+    maxDistance = maxDistance or 45 
     
     -- Quét rạch ròi cả hai nút Button1 và Button2
     for _, buttonName in ipairs({"Button1", "Button2"}) do
         local button = doorModel:FindFirstChild(buttonName)
         if button then
-            pressSpecificButton(button, maxDistance)
+            pressSpecificButton(button, maxDistance, targetAction)
         end
     end
 end
@@ -295,23 +334,30 @@ end
 task.spawn(function()
     while task.wait(0.2) do
         if DoorsFolder then
-            -- Chế độ 1: NEAREST (Tự động mở khi lại gần) -> Giới hạn khoảng cách mặc định game = 45 studs
-            if getgenv().AutoOpenNearest or getgenv().AutoCloseNearest then
+            -- Chế độ 1: NEAREST (Tự động tương tác khi lại gần)
+            if getgenv().AutoOpenNearest then
                 local nearest = getNearestDoor()
-                if nearest then 
-                    interactWithDoor(nearest, 45) 
-                end
+                if nearest then interactWithDoor(nearest, 45, "Open") end
+            elseif getgenv().AutoCloseNearest then
+                local nearest = getNearestDoor()
+                if nearest then interactWithDoor(nearest, 45, "Close") end
             end
             
             -- Chế độ 2: CHOOSING (Điều khiển một cửa được chọn cụ thể) -> Max tầm xa = 9000 studs
-            if (getgenv().AutoOpenSelected or getgenv().AutoCloseSelected) and selectedDoor then
-                interactWithDoor(selectedDoor, 9000)
+            if getgenv().AutoOpenSelected and selectedDoor then
+                interactWithDoor(selectedDoor, 9000, "Open")
+            elseif getgenv().AutoCloseSelected and selectedDoor then
+                interactWithDoor(selectedDoor, 9000, "Close")
             end
             
             -- Chế độ 3: ALL (Kích nổ toàn bộ hệ thống cửa bản đồ) -> Max tầm xa = 9000 studs
-            if getgenv().AutoOpenAll or getgenv().AutoCloseAll then
+            if getgenv().AutoOpenAll then
                 for _, door in ipairs(DoorsFolder:GetChildren()) do
-                    interactWithDoor(door, 9000)
+                    interactWithDoor(door, 9000, "Open")
+                end
+            elseif getgenv().AutoCloseAll then
+                for _, door in ipairs(DoorsFolder:GetChildren()) do
+                    interactWithDoor(door, 9000, "Close")
                 end
             end
         end
@@ -825,7 +871,7 @@ local Page4 = createPage("VisualsMovement", true)
 local Page5 = createPage("CbringV2", true)
 local Page6 = createPage("PlayerStatus", true)
 local Page7 = createPage("Credit", false)
-local Page8 = createPage("AutoDoors", true) -- THÊM TRANG THỨ 8
+local Page8 = createPage("AutoDoors", true)
 
 local PageTitles = {
     "P1: WEAPON MODS", 
@@ -835,7 +881,7 @@ local PageTitles = {
     "P5: CBRING V2", 
     "P6: PLAYER STATUS",
     "P7: CREDITS HUB",
-    "P8: AUTO DOORS" -- THÊM TIÊU ĐỀ TRANG 8
+    "P8: AUTO DOORS"
 }
 
 local function showPage(index)
@@ -1581,7 +1627,7 @@ SubMsg.TextWrapped = true
 SubMsg.TextXAlignment = Enum.TextXAlignment.Left
 
 -- ==========================================
--- PAGE 8: AUTO DOORS (INTEGRATED LAYOUT)
+-- PAGE 8: AUTO DOORS (INTEGRATED LAYOUT WITH SMART CFRAME CHECK)
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)
@@ -1594,13 +1640,13 @@ createHeaderLabel(Page8, "Nearest Door")
 local OpenNearestBtn = createActionButton(Page8, "Open Nearest Door", Color3.fromRGB(35, 35, 35))
 OpenNearestBtn.MouseButton1Click:Connect(function()
     local nearest = getNearestDoor()
-    if nearest then interactWithDoor(nearest, 45) end
+    if nearest then interactWithDoor(nearest, 45, "Open") end
 end)
 
 local CloseNearestBtn = createActionButton(Page8, "Close Nearest Door", Color3.fromRGB(35, 35, 35))
 CloseNearestBtn.MouseButton1Click:Connect(function()
     local nearest = getNearestDoor()
-    if nearest then interactWithDoor(nearest, 45) end
+    if nearest then interactWithDoor(nearest, 45, "Close") end
 end)
 
 createToggle(Page8, "Auto Open Nearest Door", 0, "AutoOpenNearest")
@@ -1648,12 +1694,12 @@ end)
 
 local OpenSelectedBtn = createActionButton(Page8, "Open Door (Selected)", Color3.fromRGB(35, 35, 35))
 OpenSelectedBtn.MouseButton1Click:Connect(function()
-    if selectedDoor then interactWithDoor(selectedDoor, 9000) end
+    if selectedDoor then interactWithDoor(selectedDoor, 9000, "Open") end
 end)
 
 local CloseSelectedBtn = createActionButton(Page8, "Close Door (Selected)", Color3.fromRGB(35, 35, 35))
 CloseSelectedBtn.MouseButton1Click:Connect(function()
-    if selectedDoor then interactWithDoor(selectedDoor, 9000) end
+    if selectedDoor then interactWithDoor(selectedDoor, 9000, "Close") end
 end)
 
 createToggle(Page8, "Auto Open Selected Door", 0, "AutoOpenSelected")
@@ -1670,14 +1716,14 @@ createHeaderLabel(Page8, "All Doors (Lag)")
 local OpenAllBtn = createActionButton(Page8, "Open ALL Doors", Color3.fromRGB(150, 30, 30))
 OpenAllBtn.MouseButton1Click:Connect(function()
     if DoorsFolder then
-        for _, door in ipairs(DoorsFolder:GetChildren()) do interactWithDoor(door, 9000) end
+        for _, door in ipairs(DoorsFolder:GetChildren()) do interactWithDoor(door, 9000, "Open") end
     end
 end)
 
 local CloseAllBtn = createActionButton(Page8, "Close ALL Doors", Color3.fromRGB(150, 30, 30))
 CloseAllBtn.MouseButton1Click:Connect(function()
     if DoorsFolder then
-        for _, door in ipairs(DoorsFolder:GetChildren()) do interactWithDoor(door, 9000) end
+        for _, door in ipairs(DoorsFolder:GetChildren()) do interactWithDoor(door, 9000, "Close") end
     end
 end)
 

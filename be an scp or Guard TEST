@@ -221,30 +221,40 @@ end
 -- ==========================================
 -- SMART CFRAME DOOR STATE DETECTION ENGINE
 -- ==========================================
-local openCFrame = CFrame.new(59.8265915, 3.95500302, -473.85498, -1, 0, 0, 0, 1, 0, 0, 0, -1)
-local closeCFrame = CFrame.new(63.3348122, 3.95525694, -473.85498, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+-- Khởi tạo bảng lưu trữ vị trí Đóng gốc (vào Frame) của từng cánh cửa khi chạy script lần đầu
+local DoorOriginalCFrames = {}
 
-local function getDoor1State(doorModel)
+local function getDoorState(doorModel)
     if not doorModel then return "Unknown" end
     local door1 = doorModel:FindFirstChild("Door1")
     if not door1 or not door1:IsA("BasePart") then return "Unknown" end
 
-    local currentCFrame = door1.CFrame
-    local distanceToOpen = (currentCFrame.Position - openCFrame.Position).Magnitude
-    local distanceToClose = (currentCFrame.Position - closeCFrame.Position).Magnitude
+    -- Lưu lại vị trí ban đầu (lúc đóng) nếu chưa có trong bộ nhớ cache
+    if not DoorOriginalCFrames[doorModel] then
+        DoorOriginalCFrames[doorModel] = door1.CFrame
+    end
 
-    if distanceToOpen < 0.1 then
-        return "Open"
-    -- Kể cả khi lệch hệ số nhỏ do vật lý, nếu gần với Closed hơn Open thì coi như Closed
-    elseif distanceToClose < 0.1 or (distanceToClose < distanceToOpen and distanceToClose < 1) then
+    local closeCFrame = DoorOriginalCFrames[doorModel]
+    -- Vị trí mở tính toán bằng cách trượt sang trái 3.5 studs từ vị trí đóng gốc
+    local openCFrame = closeCFrame * CFrame.new(-3.5, 0, 0)
+
+    local currentCFrame = door1.CFrame
+    local distToClose = (currentCFrame.Position - closeCFrame.Position).Magnitude
+    local distToOpen = (currentCFrame.Position - openCFrame.Position).Magnitude
+
+    -- So sánh khoảng cách sai số nhỏ (< 0.5 stud) để trả về trạng thái rạch ròi
+    if distToClose < 0.5 then
         return "Closed"
+    elseif distToOpen < 0.5 then
+        return "Open"
     else
-        return "Unknown"
+        -- Trường hợp cửa đang trượt dở dang giữa chừng
+        return distToClose < distToOpen and "Closed" or "Open"
     end
 end
 
 -- ==========================================
--- AUTO DOORS LOGIC CORE FUNCTIONS (UPDATED SMART MOTOR)
+-- AUTO DOORS LOGIC CORE FUNCTIONS (SMART CFRAME FILTER)
 -- ==========================================
 local function pressSpecificButton(button, maxDistance, targetAction)
     if button and button:IsA("BasePart") then
@@ -257,17 +267,15 @@ local function pressSpecificButton(button, maxDistance, targetAction)
                 
                 if distance <= maxDistance then
                     local parentDoor = button.Parent
-                    local doorState = getDoor1State(parentDoor)
+                    local doorState = getDoorState(parentDoor)
 
-                    -- Phân tích hành động thông minh dựa theo yêu cầu của bạn
-                    if targetAction == "Open" then
-                        if doorState == "Open" then
-                            return -- Đã mở sẵn, chặn không fire ClickDetector
-                        end
-                    elseif targetAction == "Close" then
-                        if doorState == "Closed" then
-                            return -- Đã đóng sẵn, chặn không fire ClickDetector
-                        end
+                    -- BỘ LỌC CHẶN HÀNH ĐỘNG DƯ THỪA:
+                    -- Nếu lệnh yêu cầu là "Open" nhưng trạng thái đo được đã là "Open" -> CHẶN
+                    if targetAction == "Open" and doorState == "Open" then
+                        return
+                    -- Nếu lệnh yêu cầu là "Close" nhưng trạng thái đo được đã là "Closed" -> CHẶN (Không tự động fire bừa bãi)
+                    elseif targetAction == "Close" and doorState == "Closed" then
+                        return
                     end
 
                     fireclickdetector(clickDetector)
@@ -277,12 +285,10 @@ local function pressSpecificButton(button, maxDistance, targetAction)
     end
 end
 
--- Tối ưu hóa hàm interactWithDoor theo từng cấu hình khoảng cách riêng và hành động đích
 local function interactWithDoor(doorModel, maxDistance, targetAction)
     if not doorModel then return end
     maxDistance = maxDistance or 45 
     
-    -- Quét rạch ròi cả hai nút Button1 và Button2
     for _, buttonName in ipairs({"Button1", "Button2"}) do
         local button = doorModel:FindFirstChild(buttonName)
         if button then
@@ -291,7 +297,6 @@ local function interactWithDoor(doorModel, maxDistance, targetAction)
     end
 end
 
--- Tìm cánh cửa dựa vào khoảng cách nút bấm (Button1 hoặc Button2) gần nhất thay vì PrimaryPart
 local function getNearestDoor()
     if not DoorsFolder then return nil end
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
@@ -334,7 +339,7 @@ end
 task.spawn(function()
     while task.wait(0.2) do
         if DoorsFolder then
-            -- Chế độ 1: NEAREST (Tự động tương tác khi lại gần)
+            -- Chế độ 1: NEAREST
             if getgenv().AutoOpenNearest then
                 local nearest = getNearestDoor()
                 if nearest then interactWithDoor(nearest, 45, "Open") end
@@ -343,14 +348,14 @@ task.spawn(function()
                 if nearest then interactWithDoor(nearest, 45, "Close") end
             end
             
-            -- Chế độ 2: CHOOSING (Điều khiển một cửa được chọn cụ thể) -> Max tầm xa = 9000 studs
+            -- Chế độ 2: CHOOSING -> Max tầm xa = 9000 studs
             if getgenv().AutoOpenSelected and selectedDoor then
                 interactWithDoor(selectedDoor, 9000, "Open")
             elseif getgenv().AutoCloseSelected and selectedDoor then
                 interactWithDoor(selectedDoor, 9000, "Close")
             end
             
-            -- Chế độ 3: ALL (Kích nổ toàn bộ hệ thống cửa bản đồ) -> Max tầm xa = 9000 studs
+            -- Chế độ 3: ALL -> Max tầm xa = 9000 studs
             if getgenv().AutoOpenAll then
                 for _, door in ipairs(DoorsFolder:GetChildren()) do
                     interactWithDoor(door, 9000, "Open")
@@ -1627,7 +1632,7 @@ SubMsg.TextWrapped = true
 SubMsg.TextXAlignment = Enum.TextXAlignment.Left
 
 -- ==========================================
--- PAGE 8: AUTO DOORS (INTEGRATED LAYOUT WITH SMART CFRAME CHECK)
+-- PAGE 8: AUTO DOORS (INTEGRATED CFRAME FILTER ENGINE)
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)

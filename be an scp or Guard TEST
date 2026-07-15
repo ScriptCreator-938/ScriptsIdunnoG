@@ -1,5 +1,5 @@
 -- [[ ULTIMATE MULTI-TAB MENU - INTEGRATED PC & MOBILE DUAL DRAG ENGINE ]] --
--- Premium Edition v5.4 [CROSS-PLATFORM SMOOTH DRAG & COMPACT INTERFACE]
+-- Premium Edition v5.5 [CROSS-PLATFORM SMOOTH DRAG & COMPACT INTERFACE]
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,6 +10,9 @@ local Teams = game:GetService("Teams")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
+
+-- ID tài khoản Roblox của mqxq11 để đối chiếu chính xác
+local DEVELOPER_USER_ID = 11131673419
 
 -- Weapon Stats Module Data
 local WeaponStatsModule = ReplicatedStorage:WaitForChild("WeaponStats", 5)
@@ -57,13 +60,10 @@ getgenv().LockTeamEnabled = false
 getgenv().TargetSCPNumber = ""      
 getgenv().LockSCPEnabled = false    
 
--- AUTO DOORS SETTINGS
-getgenv().AutoOpenNearest = false
-getgenv().AutoCloseNearest = false
-getgenv().AutoOpenSelected = false
-getgenv().AutoCloseSelected = false
-getgenv().AutoOpenAll = false
-getgenv().AutoCloseAll = false
+-- AUTO FIRE CLICK DETECTORS SETTINGS
+getgenv().AutoFireCDNearest = false
+getgenv().AutoFireCDChosen = false
+getgenv().AutoFireCDAll = false
 
 local selectedDoor = nil
 local doorHighlight = nil
@@ -219,80 +219,27 @@ local function getDynamicFOVCenter()
 end
 
 -- ==========================================
--- SMART CFRAME DOOR STATE DETECTION ENGINE
+-- DIRECT CLICK DETECTOR TRIGGER LOGIC
 -- ==========================================
--- Khởi tạo bảng lưu trữ vị trí Đóng gốc (vào Frame) của từng cánh cửa khi chạy script lần đầu
-local DoorOriginalCFrames = {}
+local function fireDoorClickDetectors(doorModel, maxDistance)
+    if not doorModel then return end
+    maxDistance = maxDistance or 9000
 
-local function getDoorState(doorModel)
-    if not doorModel then return "Unknown" end
-    local door1 = doorModel:FindFirstChild("Door1")
-    if not door1 or not door1:IsA("BasePart") then return "Unknown" end
-
-    -- Lưu lại vị trí ban đầu (lúc đóng) nếu chưa có trong bộ nhớ cache
-    if not DoorOriginalCFrames[doorModel] then
-        DoorOriginalCFrames[doorModel] = door1.CFrame
-    end
-
-    local closeCFrame = DoorOriginalCFrames[doorModel]
-    -- Vị trí mở tính toán bằng cách trượt sang trái 3.5 studs từ vị trí đóng gốc
-    local openCFrame = closeCFrame * CFrame.new(-3.5, 0, 0)
-
-    local currentCFrame = door1.CFrame
-    local distToClose = (currentCFrame.Position - closeCFrame.Position).Magnitude
-    local distToOpen = (currentCFrame.Position - openCFrame.Position).Magnitude
-
-    -- So sánh khoảng cách sai số nhỏ (< 0.5 stud) để trả về trạng thái rạch ròi
-    if distToClose < 0.5 then
-        return "Closed"
-    elseif distToOpen < 0.5 then
-        return "Open"
-    else
-        -- Trường hợp cửa đang trượt dở dang giữa chừng
-        return distToClose < distToOpen and "Closed" or "Open"
-    end
-end
-
--- ==========================================
--- AUTO DOORS LOGIC CORE FUNCTIONS (SMART CFRAME FILTER)
--- ==========================================
-local function pressSpecificButton(button, maxDistance, targetAction)
-    if button and button:IsA("BasePart") then
-        local clickDetector = button:FindFirstChildOfClass("ClickDetector")
-        if clickDetector then
-            local character = LocalPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                local myPos = character.HumanoidRootPart.Position
-                local distance = (button.Position - myPos).Magnitude
-                
-                if distance <= maxDistance then
-                    local parentDoor = button.Parent
-                    local doorState = getDoorState(parentDoor)
-
-                    -- BỘ LỌC CHẶN HÀNH ĐỘNG DƯ THỪA:
-                    -- Nếu lệnh yêu cầu là "Open" nhưng trạng thái đo được đã là "Open" -> CHẶN
-                    if targetAction == "Open" and doorState == "Open" then
-                        return
-                    -- Nếu lệnh yêu cầu là "Close" nhưng trạng thái đo được đã là "Closed" -> CHẶN (Không tự động fire bừa bãi)
-                    elseif targetAction == "Close" and doorState == "Closed" then
-                        return
+    -- Quét tất cả các ClickDetector trong phạm vi Model Door
+    for _, descendant in ipairs(doorModel:GetDescendants()) do
+        if descendant:IsA("ClickDetector") then
+            -- Kiểm tra khoảng cách nếu cần giới hạn tầm bắn
+            local parentPart = descendant.Parent
+            if parentPart and parentPart:IsA("BasePart") then
+                local character = LocalPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local myPos = character.HumanoidRootPart.Position
+                    local dist = (parentPart.Position - myPos).Magnitude
+                    if dist <= maxDistance then
+                        fireclickdetector(descendant)
                     end
-
-                    fireclickdetector(clickDetector)
                 end
             end
-        end
-    end
-end
-
-local function interactWithDoor(doorModel, maxDistance, targetAction)
-    if not doorModel then return end
-    maxDistance = maxDistance or 45 
-    
-    for _, buttonName in ipairs({"Button1", "Button2"}) do
-        local button = doorModel:FindFirstChild(buttonName)
-        if button then
-            pressSpecificButton(button, maxDistance, targetAction)
         end
     end
 end
@@ -306,13 +253,15 @@ local function getNearestDoor()
     local minDistance = math.huge
     
     for _, door in ipairs(DoorsFolder:GetChildren()) do
-        for _, buttonName in ipairs({"Button1", "Button2"}) do
-            local button = door:FindFirstChild(buttonName)
-            if button and button:IsA("BasePart") then
-                local dist = (button.Position - charPos).Magnitude
-                if dist < minDistance then
-                    minDistance = dist
-                    nearestDoor = door
+        for _, descendant in ipairs(door:GetDescendants()) do
+            if descendant:IsA("ClickDetector") then
+                local parentPart = descendant.Parent
+                if parentPart and parentPart:IsA("BasePart") then
+                    local dist = (parentPart.Position - charPos).Magnitude
+                    if dist < minDistance then
+                        minDistance = dist
+                        nearestDoor = door
+                    end
                 end
             end
         end
@@ -335,34 +284,25 @@ local function highlightDoor(doorModel)
     doorHighlight.Parent = doorModel
 end
 
--- Vòng lặp quản lý tổng hợp và đồng bộ hóa các trạng thái Toggle của Auto Doors
+-- Vòng lặp quản lý tổng hợp và đồng bộ hóa các trạng thái Auto CD
 task.spawn(function()
-    while task.wait(0.2) do
+    while task.wait(0.15) do
         if DoorsFolder then
-            -- Chế độ 1: NEAREST
-            if getgenv().AutoOpenNearest then
+            -- Auto Fire CD Nearest
+            if getgenv().AutoFireCDNearest then
                 local nearest = getNearestDoor()
-                if nearest then interactWithDoor(nearest, 45, "Open") end
-            elseif getgenv().AutoCloseNearest then
-                local nearest = getNearestDoor()
-                if nearest then interactWithDoor(nearest, 45, "Close") end
+                if nearest then fireDoorClickDetectors(nearest, 45) end
             end
             
-            -- Chế độ 2: CHOOSING -> Max tầm xa = 9000 studs
-            if getgenv().AutoOpenSelected and selectedDoor then
-                interactWithDoor(selectedDoor, 9000, "Open")
-            elseif getgenv().AutoCloseSelected and selectedDoor then
-                interactWithDoor(selectedDoor, 9000, "Close")
+            -- Auto Fire CD Chosen
+            if getgenv().AutoFireCDChosen and selectedDoor then
+                fireDoorClickDetectors(selectedDoor, 9000)
             end
             
-            -- Chế độ 3: ALL -> Max tầm xa = 9000 studs
-            if getgenv().AutoOpenAll then
+            -- Auto Fire CD All
+            if getgenv().AutoFireCDAll then
                 for _, door in ipairs(DoorsFolder:GetChildren()) do
-                    interactWithDoor(door, 9000, "Open")
-                end
-            elseif getgenv().AutoCloseAll then
-                for _, door in ipairs(DoorsFolder:GetChildren()) do
-                    interactWithDoor(door, 9000, "Close")
+                    fireDoorClickDetectors(door, 9000)
                 end
             end
         end
@@ -886,7 +826,7 @@ local PageTitles = {
     "P5: CBRING V2", 
     "P6: PLAYER STATUS",
     "P7: CREDITS HUB",
-    "P8: AUTO DOORS"
+    "P8: AUTO DOORS (CD)"
 }
 
 local function showPage(index)
@@ -1582,7 +1522,7 @@ L6:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- ==========================================
--- PAGE 7: CREDITS HUB
+-- PAGE 7: CREDITS HUB (DYNAMIC SCAN DEVELOPER)
 -- ==========================================
 local L7 = Instance.new("UIListLayout", Page7)
 L7.Padding = UDim.new(0, 10)
@@ -1590,7 +1530,7 @@ L7.HorizontalAlignment = Enum.HorizontalAlignment.Center
 L7.VerticalAlignment = Enum.VerticalAlignment.Center
 
 local CreditBox = Instance.new("Frame", Page7)
-CreditBox.Size = UDim2.new(0.9, 0, 0, 140)
+CreditBox.Size = UDim2.new(0.9, 0, 0, 180)
 CreditBox.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 CreditBox.BorderSizePixel = 0
 Instance.new("UICorner", CreditBox).CornerRadius = UDim.new(0, 8)
@@ -1609,30 +1549,73 @@ CreditTitle.Font = Enum.Font.GothamBold
 CreditTitle.TextSize = 13
 CreditTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-local MainMsg = Instance.new("TextLabel", CreditBox)
-MainMsg.Size = UDim2.new(1, 0, 0, 45)
-MainMsg.Position = UDim2.new(0, 0, 0, 30)
-MainMsg.BackgroundTransparency = 1
-MainMsg.Text = "Creator of NoneUserHub (Be an SCP or Guard):\nNoneUsername0813 (True in this Server)"
-MainMsg.TextColor3 = Color3.fromRGB(255, 255, 255)
-MainMsg.Font = Enum.Font.GothamSemibold
-MainMsg.TextSize = 11
-MainMsg.TextWrapped = true
-MainMsg.TextXAlignment = Enum.TextXAlignment.Left
+local CreatorMsg = Instance.new("TextLabel", CreditBox)
+CreatorMsg.Size = UDim2.new(1, 0, 0, 30)
+CreatorMsg.Position = UDim2.new(0, 0, 0, 30)
+CreatorMsg.BackgroundTransparency = 1
+CreatorMsg.Text = "Creator of NoneUserHub (Be an SCP or Guard):\nNoneUsername0813"
+CreatorMsg.TextColor3 = Color3.fromRGB(255, 255, 255)
+CreatorMsg.Font = Enum.Font.GothamSemibold
+CreatorMsg.TextSize = 11
+CreatorMsg.TextXAlignment = Enum.TextXAlignment.Left
+
+local DevMsg = Instance.new("TextLabel", CreditBox)
+DevMsg.Size = UDim2.new(1, 0, 0, 45)
+DevMsg.Position = UDim2.new(0, 0, 0, 65)
+DevMsg.BackgroundTransparency = 1
+DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (Checking...)"
+DevMsg.TextColor3 = Color3.fromRGB(255, 255, 255)
+DevMsg.Font = Enum.Font.GothamSemibold
+DevMsg.TextSize = 11
+DevMsg.TextWrapped = true
+DevMsg.TextXAlignment = Enum.TextXAlignment.Left
 
 local SubMsg = Instance.new("TextLabel", CreditBox)
 SubMsg.Size = UDim2.new(1, 0, 0, 40)
-SubMsg.Position = UDim2.new(0, 0, 0, 85)
+SubMsg.Position = UDim2.new(0, 0, 0, 120)
 SubMsg.BackgroundTransparency = 1
-SubMsg.Text = "Cross-Platform Drag Engine v5.4. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
+SubMsg.Text = "Cross-Platform Drag Engine v5.5. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
 SubMsg.TextColor3 = Color3.fromRGB(150, 150, 150)
 SubMsg.Font = Enum.Font.Gotham
 SubMsg.TextSize = 10
 SubMsg.TextWrapped = true
 SubMsg.TextXAlignment = Enum.TextXAlignment.Left
 
+-- Vòng lặp liên tục quét Server để xác minh sự hiện diện của mqxq11 bằng Username hoặc ID tài khoản
+task.spawn(function()
+    while true do
+        local devInServer = false
+        
+        -- Cách 1: Tìm kiếm trực tiếp qua danh sách Player hiện tại
+        local targetDev = Players:FindFirstChild("mqxq11")
+        if targetDev then
+            devInServer = true
+        else
+            -- Cách 2: Quét vòng lặp phòng trường hợp đổi tên hiển thị (DisplayName) hoặc đối chiếu theo UserId chính xác
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.UserId == DEVELOPER_USER_ID then
+                    devInServer = true
+                    break
+                end
+            end
+        end
+
+        -- Cập nhật trực quan text thông báo
+        if devInServer then
+            DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (True in this server)"
+            DevMsg.TextColor3 = Color3.fromRGB(0, 255, 150) -- Màu xanh lá cây phát sáng biểu thị True
+        else
+            -- Hiển thị thông số ID của mqxq11 nếu không có mặt trong server
+            DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (False) [ID: " .. tostring(DEVELOPER_USER_ID) .. "]"
+            DevMsg.TextColor3 = Color3.fromRGB(255, 80, 80) -- Màu đỏ biểu thị False
+        end
+        
+        task.wait(2.5) -- Quét lại sau mỗi 2.5 giây để tránh quá tải
+    end
+end)
+
 -- ==========================================
--- PAGE 8: AUTO DOORS (INTEGRATED CFRAME FILTER ENGINE)
+-- PAGE 8: AUTO DOORS (DIRECT CLICK DETECTORS ENGINE)
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)
@@ -1640,22 +1623,15 @@ local P8 = Instance.new("UIPadding", Page8)
 P8.PaddingTop = UDim.new(0, 10)
 
 -- --- SECTION 1: NEAREST ---
-createHeaderLabel(Page8, "Nearest Door")
+createHeaderLabel(Page8, "Nearest Door Trigger")
 
-local OpenNearestBtn = createActionButton(Page8, "Open Nearest Door", Color3.fromRGB(35, 35, 35))
-OpenNearestBtn.MouseButton1Click:Connect(function()
+local FireCDNearestBtn = createActionButton(Page8, "Fire CD Nearest Door", Color3.fromRGB(35, 35, 35))
+FireCDNearestBtn.MouseButton1Click:Connect(function()
     local nearest = getNearestDoor()
-    if nearest then interactWithDoor(nearest, 45, "Open") end
+    if nearest then fireDoorClickDetectors(nearest, 45) end
 end)
 
-local CloseNearestBtn = createActionButton(Page8, "Close Nearest Door", Color3.fromRGB(35, 35, 35))
-CloseNearestBtn.MouseButton1Click:Connect(function()
-    local nearest = getNearestDoor()
-    if nearest then interactWithDoor(nearest, 45, "Close") end
-end)
-
-createToggle(Page8, "Auto Open Nearest Door", 0, "AutoOpenNearest")
-createToggle(Page8, "Auto Close Nearest Door", 0, "AutoCloseNearest")
+createToggle(Page8, "Auto Fire CD Nearest Door", 0, "AutoFireCDNearest")
 
 local DoorDivider1 = Instance.new("Frame", Page8)
 DoorDivider1.Size = UDim2.new(0.9, 0, 0, 2)
@@ -1663,7 +1639,7 @@ DoorDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 DoorDivider1.BorderSizePixel = 0
 
 -- --- SECTION 2: CHOOSING ---
-createHeaderLabel(Page8, "Choosing Door")
+createHeaderLabel(Page8, "Chosen Door Trigger")
 
 local ChooseDoorBtn = Instance.new("TextButton")
 ChooseDoorBtn.Size = UDim2.new(0.9, 0, 0, 35)
@@ -1697,43 +1673,29 @@ ChooseDoorBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-local OpenSelectedBtn = createActionButton(Page8, "Open Door (Selected)", Color3.fromRGB(35, 35, 35))
-OpenSelectedBtn.MouseButton1Click:Connect(function()
-    if selectedDoor then interactWithDoor(selectedDoor, 9000, "Open") end
+local FireCDChosenBtn = createActionButton(Page8, "Fire CD Chosen Door", Color3.fromRGB(35, 35, 35))
+FireCDChosenBtn.MouseButton1Click:Connect(function()
+    if selectedDoor then fireDoorClickDetectors(selectedDoor, 9000) end
 end)
 
-local CloseSelectedBtn = createActionButton(Page8, "Close Door (Selected)", Color3.fromRGB(35, 35, 35))
-CloseSelectedBtn.MouseButton1Click:Connect(function()
-    if selectedDoor then interactWithDoor(selectedDoor, 9000, "Close") end
-end)
-
-createToggle(Page8, "Auto Open Selected Door", 0, "AutoOpenSelected")
-createToggle(Page8, "Auto Close Selected Door", 0, "AutoCloseSelected")
+createToggle(Page8, "Auto Fire CD Chosen Door", 0, "AutoFireCDChosen")
 
 local DoorDivider2 = Instance.new("Frame", Page8)
 DoorDivider2.Size = UDim2.new(0.9, 0, 0, 2)
 DoorDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 DoorDivider2.BorderSizePixel = 0
 
--- --- SECTION 3: ALL (LAG) ---
-createHeaderLabel(Page8, "All Doors (Lag)")
+-- --- SECTION 3: ALL ---
+createHeaderLabel(Page8, "All Doors Trigger")
 
-local OpenAllBtn = createActionButton(Page8, "Open ALL Doors", Color3.fromRGB(150, 30, 30))
-OpenAllBtn.MouseButton1Click:Connect(function()
+local FireCDAllBtn = createActionButton(Page8, "Fire CD ALL Doors", Color3.fromRGB(150, 30, 30))
+FireCDAllBtn.MouseButton1Click:Connect(function()
     if DoorsFolder then
-        for _, door in ipairs(DoorsFolder:GetChildren()) do interactWithDoor(door, 9000, "Open") end
+        for _, door in ipairs(DoorsFolder:GetChildren()) do fireDoorClickDetectors(door, 9000) end
     end
 end)
 
-local CloseAllBtn = createActionButton(Page8, "Close ALL Doors", Color3.fromRGB(150, 30, 30))
-CloseAllBtn.MouseButton1Click:Connect(function()
-    if DoorsFolder then
-        for _, door in ipairs(DoorsFolder:GetChildren()) do interactWithDoor(door, 9000, "Close") end
-    end
-end)
-
-createToggle(Page8, "Auto Open ALL Doors", 0, "AutoOpenAll")
-createToggle(Page8, "Auto Close ALL Doors", 0, "AutoCloseAll")
+createToggle(Page8, "Auto Fire CD ALL Doors", 0, "AutoFireCDAll")
 
 L8:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page8.CanvasSize = UDim2.new(0, 0, 0, L8.AbsoluteContentSize.Y + 25)

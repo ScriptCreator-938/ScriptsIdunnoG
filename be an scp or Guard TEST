@@ -1,5 +1,5 @@
 -- [[ ULTIMATE MULTI-TAB MENU - INTEGRATED PC & MOBILE DUAL DRAG ENGINE ]] --
--- Premium Edition v5.5 [CROSS-PLATFORM SMOOTH DRAG & COMPACT INTERFACE]
+-- Premium Edition v6.0 [CROSS-PLATFORM SMOOTH DRAG & COMPACT INTERFACE]
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,15 +11,17 @@ local Teams = game:GetService("Teams")
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- ID tài khoản Roblox của mqxq11 để đối chiếu chính xác
+-- ID tài khoản Roblox của mqxq11 chính xác theo cập nhật mới
 local DEVELOPER_USER_ID = 11131673419
 
 -- Weapon Stats Module Data
 local WeaponStatsModule = ReplicatedStorage:WaitForChild("WeaponStats", 5)
 local RawStats = WeaponStatsModule and require(WeaponStatsModule) or {}
 
--- Cấu hình thư mục cửa
-local DoorsFolder = Workspace:WaitForChild("Facility", 5) and Workspace.Facility:WaitForChild("Doors", 5)
+-- Cấu hình thư mục Doors và Gates trong Facility
+local FacilityFolder = Workspace:WaitForChild("Facility", 5)
+local DoorsFolder = FacilityFolder and FacilityFolder:WaitForChild("Doors", 5)
+local GatesFolder = FacilityFolder and FacilityFolder:WaitForChild("Gates", 5)
 
 -- ==========================================
 -- GLOBAL SETTINGS CONFIGURATION
@@ -60,13 +62,15 @@ getgenv().LockTeamEnabled = false
 getgenv().TargetSCPNumber = ""      
 getgenv().LockSCPEnabled = false    
 
--- AUTO FIRE CLICK DETECTORS SETTINGS
+-- AUTO FIRE CLICK DETECTORS SETTINGS (DOORS & GATES)
 getgenv().AutoFireCDNearest = false
 getgenv().AutoFireCDChosen = false
 getgenv().AutoFireCDAll = false
 
-local selectedDoor = nil
-local doorHighlight = nil
+-- Biến lưu trữ đối tượng được chọn (Có thể là Model Door hoặc Model Gate)
+local selectedObject = nil
+local objectHighlight = nil
+local searchFilterMode = "All" -- Mặc định chế độ lọc là "All"
 
 -- Biến kiểm soát khóa cứng
 local PlayerLockReady = false
@@ -219,91 +223,93 @@ local function getDynamicFOVCenter()
 end
 
 -- ==========================================
--- DIRECT CLICK DETECTOR TRIGGER LOGIC
+-- UNIVERSAL CLICK DETECTOR FIRE ENGINE (DOORS & GATES)
 -- ==========================================
-local function fireDoorClickDetectors(doorModel, maxDistance)
-    if not doorModel then return end
+local function fireObjectClickDetectors(model, maxDistance)
+    if not model then return end
     maxDistance = maxDistance or 9000
 
-    -- Quét tất cả các ClickDetector trong phạm vi Model Door
-    for _, descendant in ipairs(doorModel:GetDescendants()) do
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local myPos = character.HumanoidRootPart.Position
+
+    -- Trích xuất cấu trúc tìm kiếm CD linh hoạt (Hỗ trợ cấu trúc chuyên sâu của Gates)
+    for _, descendant in ipairs(model:GetDescendants()) do
         if descendant:IsA("ClickDetector") then
-            -- Kiểm tra khoảng cách nếu cần giới hạn tầm bắn
             local parentPart = descendant.Parent
             if parentPart and parentPart:IsA("BasePart") then
-                local character = LocalPlayer.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    local myPos = character.HumanoidRootPart.Position
-                    local dist = (parentPart.Position - myPos).Magnitude
-                    if dist <= maxDistance then
-                        fireclickdetector(descendant)
-                    end
+                local dist = (parentPart.Position - myPos).Magnitude
+                if dist <= maxDistance then
+                    fireclickdetector(descendant)
                 end
             end
         end
     end
 end
 
-local function getNearestDoor()
-    if not DoorsFolder then return nil end
+-- Tìm Door hoặc Gate gần nhất dựa trên khoảng cách thực tế
+local function getNearestDoorOrGate()
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
-    
     local charPos = LocalPlayer.Character.HumanoidRootPart.Position
-    local nearestDoor = nil
+    local nearestObj = nil
     local minDistance = math.huge
     
-    for _, door in ipairs(DoorsFolder:GetChildren()) do
-        for _, descendant in ipairs(door:GetDescendants()) do
-            if descendant:IsA("ClickDetector") then
-                local parentPart = descendant.Parent
-                if parentPart and parentPart:IsA("BasePart") then
-                    local dist = (parentPart.Position - charPos).Magnitude
-                    if dist < minDistance then
-                        minDistance = dist
-                        nearestDoor = door
+    local foldersToScan = {}
+    if DoorsFolder then table.insert(foldersToScan, DoorsFolder) end
+    if GatesFolder then table.insert(foldersToScan, GatesFolder) end
+    
+    for _, folder in ipairs(foldersToScan) do
+        for _, obj in ipairs(folder:GetChildren()) do
+            for _, descendant in ipairs(obj:GetDescendants()) do
+                if descendant:IsA("ClickDetector") then
+                    local parentPart = descendant.Parent
+                    if parentPart and parentPart:IsA("BasePart") then
+                        local dist = (parentPart.Position - charPos).Magnitude
+                        if dist < minDistance then
+                            minDistance = dist
+                            nearestObj = obj
+                        end
                     end
                 end
             end
         end
     end
-    return nearestDoor
+    return nearestObj
 end
 
-local function highlightDoor(doorModel)
-    if doorHighlight then doorHighlight:Destroy() end
-    if not doorModel then return end
+local function highlightObject(model)
+    if objectHighlight then objectHighlight:Destroy() end
+    if not model then return end
     
-    doorHighlight = Instance.new("Highlight")
-    doorHighlight.Name = "DoorSelectionHighlight"
-    doorHighlight.FillColor = Color3.fromRGB(0, 255, 255)
-    doorHighlight.FillTransparency = 0.5
-    doorHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    doorHighlight.OutlineTransparency = 0
-    doorHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    doorHighlight.Adornee = doorModel
-    doorHighlight.Parent = doorModel
+    objectHighlight = Instance.new("Highlight")
+    objectHighlight.Name = "NexusObjectSelectionHighlight"
+    objectHighlight.FillColor = Color3.fromRGB(0, 255, 255)
+    objectHighlight.FillTransparency = 0.5
+    objectHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    objectHighlight.OutlineTransparency = 0
+    objectHighlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    objectHighlight.Adornee = model
+    objectHighlight.Parent = model
 end
 
--- Vòng lặp quản lý tổng hợp và đồng bộ hóa các trạng thái Auto CD
+-- Vòng lặp quản lý tổng hợp trạng thái Auto CD
 task.spawn(function()
     while task.wait(0.15) do
-        if DoorsFolder then
-            -- Auto Fire CD Nearest
-            if getgenv().AutoFireCDNearest then
-                local nearest = getNearestDoor()
-                if nearest then fireDoorClickDetectors(nearest, 45) end
+        if getgenv().AutoFireCDNearest then
+            local nearest = getNearestDoorOrGate()
+            if nearest then fireObjectClickDetectors(nearest, 45) end
+        end
+        
+        if getgenv().AutoFireCDChosen and selectedObject then
+            fireObjectClickDetectors(selectedObject, 9000)
+        end
+        
+        if getgenv().AutoFireCDAll then
+            if DoorsFolder then
+                for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end
             end
-            
-            -- Auto Fire CD Chosen
-            if getgenv().AutoFireCDChosen and selectedDoor then
-                fireDoorClickDetectors(selectedDoor, 9000)
-            end
-            
-            -- Auto Fire CD All
-            if getgenv().AutoFireCDAll then
-                for _, door in ipairs(DoorsFolder:GetChildren()) do
-                    fireDoorClickDetectors(door, 9000)
-                end
+            if GatesFolder then
+                for _, gate in ipairs(GatesFolder:GetChildren()) do fireObjectClickDetectors(gate, 9000) end
             end
         end
     end
@@ -826,7 +832,7 @@ local PageTitles = {
     "P5: CBRING V2", 
     "P6: PLAYER STATUS",
     "P7: CREDITS HUB",
-    "P8: AUTO DOORS (CD)"
+    "P8: AUTO DOORS & GATES"
 }
 
 local function showPage(index)
@@ -1574,24 +1580,22 @@ local SubMsg = Instance.new("TextLabel", CreditBox)
 SubMsg.Size = UDim2.new(1, 0, 0, 40)
 SubMsg.Position = UDim2.new(0, 0, 0, 120)
 SubMsg.BackgroundTransparency = 1
-SubMsg.Text = "Cross-Platform Drag Engine v5.5. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
+SubMsg.Text = "Cross-Platform Drag Engine v6.0. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
 SubMsg.TextColor3 = Color3.fromRGB(150, 150, 150)
 SubMsg.Font = Enum.Font.Gotham
 SubMsg.TextSize = 10
 SubMsg.TextWrapped = true
 SubMsg.TextXAlignment = Enum.TextXAlignment.Left
 
--- Vòng lặp liên tục quét Server để xác minh sự hiện diện của mqxq11 bằng Username hoặc ID tài khoản
+-- Vòng lặp liên tục quét Server để xác minh sự hiện diện của mqxq11 bằng ID tài khoản mới
 task.spawn(function()
     while true do
         local devInServer = false
         
-        -- Cách 1: Tìm kiếm trực tiếp qua danh sách Player hiện tại
         local targetDev = Players:FindFirstChild("mqxq11")
         if targetDev then
             devInServer = true
         else
-            -- Cách 2: Quét vòng lặp phòng trường hợp đổi tên hiển thị (DisplayName) hoặc đối chiếu theo UserId chính xác
             for _, player in ipairs(Players:GetPlayers()) do
                 if player.UserId == DEVELOPER_USER_ID then
                     devInServer = true
@@ -1600,102 +1604,196 @@ task.spawn(function()
             end
         end
 
-        -- Cập nhật trực quan text thông báo
         if devInServer then
             DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (True in this server)"
-            DevMsg.TextColor3 = Color3.fromRGB(0, 255, 150) -- Màu xanh lá cây phát sáng biểu thị True
+            DevMsg.TextColor3 = Color3.fromRGB(0, 255, 150)
         else
-            -- Hiển thị thông số ID của mqxq11 nếu không có mặt trong server
             DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (False) [ID: " .. tostring(DEVELOPER_USER_ID) .. "]"
-            DevMsg.TextColor3 = Color3.fromRGB(255, 80, 80) -- Màu đỏ biểu thị False
+            DevMsg.TextColor3 = Color3.fromRGB(255, 80, 80)
         end
         
-        task.wait(2.5) -- Quét lại sau mỗi 2.5 giây để tránh quá tải
+        task.wait(2.5)
     end
 end)
 
 -- ==========================================
--- PAGE 8: AUTO DOORS (DIRECT CLICK DETECTORS ENGINE)
+-- PAGE 8: ADVANCED ADVANCED AUTO DOORS & GATES HUB
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)
 local P8 = Instance.new("UIPadding", Page8)
 P8.PaddingTop = UDim.new(0, 10)
 
--- --- SECTION 1: NEAREST ---
-createHeaderLabel(Page8, "Nearest Door Trigger")
+-- --- SECTION 1: NEAREST REALTIME MOTOR ---
+createHeaderLabel(Page8, "Nearest Object Trigger")
 
-local FireCDNearestBtn = createActionButton(Page8, "Fire CD Nearest Door", Color3.fromRGB(35, 35, 35))
+local FireCDNearestBtn = createActionButton(Page8, "Fire CD Nearest Door/Gate", Color3.fromRGB(35, 35, 35))
 FireCDNearestBtn.MouseButton1Click:Connect(function()
-    local nearest = getNearestDoor()
-    if nearest then fireDoorClickDetectors(nearest, 45) end
+    local nearest = getNearestDoorOrGate()
+    if nearest then fireObjectClickDetectors(nearest, 45) end
 end)
 
-createToggle(Page8, "Auto Fire CD Nearest Door", 0, "AutoFireCDNearest")
+createToggle(Page8, "Auto Fire CD Nearest Door/Gate", 0, "AutoFireCDNearest")
 
-local DoorDivider1 = Instance.new("Frame", Page8)
-DoorDivider1.Size = UDim2.new(0.9, 0, 0, 2)
-DoorDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-DoorDivider1.BorderSizePixel = 0
+local ObjDivider1 = Instance.new("Frame", Page8)
+ObjDivider1.Size = UDim2.new(0.9, 0, 0, 2)
+ObjDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ObjDivider1.BorderSizePixel = 0
 
--- --- SECTION 2: CHOOSING ---
-createHeaderLabel(Page8, "Chosen Door Trigger")
+-- --- SECTION 2: INTEGRATED SEARCH CONTROLLER ---
+createHeaderLabel(Page8, "Target Selection Panel")
 
-local ChooseDoorBtn = Instance.new("TextButton")
-ChooseDoorBtn.Size = UDim2.new(0.9, 0, 0, 35)
-ChooseDoorBtn.BackgroundColor3 = Color3.fromRGB(55, 35, 75)
-ChooseDoorBtn.Text = "CHOOSE: NONE"
-ChooseDoorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ChooseDoorBtn.Font = Enum.Font.GothamBold
-ChooseDoorBtn.TextSize = 10
-ChooseDoorBtn.Parent = Page8
-Instance.new("UICorner", ChooseDoorBtn).CornerRadius = UDim.new(0, 6)
+-- Khởi tạo Sub-Frame chứa thanh Tìm kiếm và bộ ba nút phân loại
+local TargetSelectionFrame = Instance.new("Frame", Page8)
+TargetSelectionFrame.Size = UDim2.new(0.9, 0, 0, 75)
+TargetSelectionFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TargetSelectionFrame.BorderSizePixel = 0
+Instance.new("UICorner", TargetSelectionFrame).CornerRadius = UDim.new(0, 8)
 
-local doorIndex = 1
-ChooseDoorBtn.MouseButton1Click:Connect(function()
-    if not DoorsFolder then 
-        ChooseDoorBtn.Text = "DOORS FOLDER NOT FOUND"
-        return 
-    end
-    local allDoors = DoorsFolder:GetChildren()
-    if #allDoors == 0 then 
-        ChooseDoorBtn.Text = "NO DOORS FOUND"
-        return 
+-- 1. Thanh Search Box nâng cấp
+local SearchBar = Instance.new("TextBox", TargetSelectionFrame)
+SearchBar.Size = UDim2.new(0.92, 0, 0, 30)
+SearchBar.Position = UDim2.new(0.04, 0, 0, 6)
+SearchBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchBar.PlaceholderText = 'Type "Door[2]", "Gate[2]" or choose Door/Gate list then type Number'
+SearchBar.Text = ""
+SearchBar.Font = Enum.Font.Gotham
+SearchBar.TextSize = 10
+Instance.new("UICorner", SearchBar).CornerRadius = UDim.new(0, 5)
+
+-- 2. Bộ ba nút phân loại ở dưới thanh Search
+local DoorsBtn = Instance.new("TextButton", TargetSelectionFrame)
+DoorsBtn.Size = UDim2.new(0.29, 0, 0, 26)
+DoorsBtn.Position = UDim2.new(0.04, 0, 0, 42)
+DoorsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+DoorsBtn.Text = "Doors"
+DoorsBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+DoorsBtn.Font = Enum.Font.GothamBold
+DoorsBtn.TextSize = 10
+Instance.new("UICorner", DoorsBtn).CornerRadius = UDim.new(0, 4)
+
+local GatesBtn = Instance.new("TextButton", TargetSelectionFrame)
+GatesBtn.Size = UDim2.new(0.29, 0, 0, 26)
+GatesBtn.Position = UDim2.new(0.35, 0, 0, 42)
+GatesBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+GatesBtn.Text = "Gates"
+GatesBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+GatesBtn.Font = Enum.Font.GothamBold
+GatesBtn.TextSize = 10
+Instance.new("UICorner", GatesBtn).CornerRadius = UDim.new(0, 4)
+
+local AllFilterBtn = Instance.new("TextButton", TargetSelectionFrame)
+AllFilterBtn.Size = UDim2.new(0.28, 0, 0, 26)
+AllFilterBtn.Position = UDim2.new(0.68, 0, 0, 42)
+AllFilterBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255) -- Mặc định active All
+AllFilterBtn.Text = "All"
+AllFilterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AllFilterBtn.Font = Enum.Font.GothamBold
+AllFilterBtn.TextSize = 10
+Instance.new("UICorner", AllFilterBtn).CornerRadius = UDim.new(0, 4)
+
+-- Logic đồng bộ màu sắc khi bấm các nút lọc phân loại
+local function updateFilterUI(activeBtn)
+    DoorsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    GatesBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    AllFilterBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    DoorsBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    GatesBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    AllFilterBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    
+    activeBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    activeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+end
+
+DoorsBtn.MouseButton1Click:Connect(function() searchFilterMode = "Doors" updateFilterUI(DoorsBtn) end)
+GatesBtn.MouseButton1Click:Connect(function() searchFilterMode = "Gates" updateFilterUI(GatesBtn) end)
+AllFilterBtn.MouseButton1Click:Connect(function() searchFilterMode = "All" updateFilterUI(AllFilterBtn) end)
+
+-- Nút hiển thị kết quả đối tượng được Target hiện tại
+local SelectionIndicatorBtn = Instance.new("TextButton")
+SelectionIndicatorBtn.Size = UDim2.new(0.9, 0, 0, 35)
+SelectionIndicatorBtn.BackgroundColor3 = Color3.fromRGB(55, 35, 75)
+SelectionIndicatorBtn.Text = "SELECTED TARGET: NONE"
+SelectionIndicatorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SelectionIndicatorBtn.Font = Enum.Font.GothamBold
+SelectionIndicatorBtn.TextSize = 10
+SelectionIndicatorBtn.Parent = Page8
+Instance.new("UICorner", SelectionIndicatorBtn).CornerRadius = UDim.new(0, 6)
+
+-- ENGINE XỬ LÝ SEARCH REALTIME CHÍNH XÁC THEO MÔ TẢ LOGIC
+SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+    local text = SearchBar.Text
+    if text == "" then return end
+    
+    local foundObj = nil
+    
+    if searchFilterMode == "All" then
+        -- Logic All: Nhập thủ công dạng "Door[2]" hoặc "Gate[2]"
+        local typePrefix, indexStr = string.match(text, "^([a-zA-Z]+)%[(%d+)%]$")
+        if typePrefix and indexStr then
+            local idx = tonumber(indexStr)
+            typePrefix = string.lower(typePrefix)
+            
+            if string.find(typePrefix, "door") and DoorsFolder then
+                local allDoors = DoorsFolder:GetChildren()
+                if allDoors[idx] then foundObj = allDoors[idx] end
+            elseif string.find(typePrefix, "gate") and GatesFolder then
+                local allGates = GatesFolder:GetChildren()
+                if allGates[idx] then foundObj = allGates[idx] end
+            end
+        end
+    elseif searchFilterMode == "Doors" then
+        -- Logic Doors: Chỉ nhập bằng số nguyên, ví dụ "2"
+        local idx = tonumber(text)
+        if idx and DoorsFolder then
+            local allDoors = DoorsFolder:GetChildren()
+            if allDoors[idx] then foundObj = allDoors[idx] end
+        end
+    elseif searchFilterMode == "Gates" then
+        -- Logic Gates: Chỉ nhập bằng số nguyên, ví dụ "2"
+        local idx = tonumber(text)
+        if idx and GatesFolder then
+            local allGates = GatesFolder:GetChildren()
+            if allGates[idx] then foundObj = allGates[idx] end
+        end
     end
     
-    doorIndex = doorIndex + 1
-    if doorIndex > #allDoors then doorIndex = 1 end
-    
-    selectedDoor = allDoors[doorIndex]
-    if selectedDoor then
-        ChooseDoorBtn.Text = "CHOOSE: " .. string.upper(selectedDoor.Name) .. " [" .. tostring(doorIndex) .. "]"
-        highlightDoor(selectedDoor)
+    -- Áp dụng thay đổi Target nếu tìm thấy đối tượng hợp lệ trong hệ thống vật lý
+    if foundObj then
+        selectedObject = foundObj
+        SelectionIndicatorBtn.Text = "SELECTED TARGET: " .. string.upper(selectedObject.Name) .. " (" .. searchFilterMode .. ")"
+        highlightObject(selectedObject)
     end
 end)
 
-local FireCDChosenBtn = createActionButton(Page8, "Fire CD Chosen Door", Color3.fromRGB(35, 35, 35))
+-- Hành động thủ công kích hoạt nhanh Chosen
+local FireCDChosenBtn = createActionButton(Page8, "Fire CD Chosen Door/Gate", Color3.fromRGB(35, 35, 35))
 FireCDChosenBtn.MouseButton1Click:Connect(function()
-    if selectedDoor then fireDoorClickDetectors(selectedDoor, 9000) end
+    if selectedObject then fireObjectClickDetectors(selectedObject, 9000) end
 end)
 
-createToggle(Page8, "Auto Fire CD Chosen Door", 0, "AutoFireCDChosen")
+createToggle(Page8, "Auto Fire CD Chosen Door/Gate", 0, "AutoFireCDChosen")
 
-local DoorDivider2 = Instance.new("Frame", Page8)
-DoorDivider2.Size = UDim2.new(0.9, 0, 0, 2)
-DoorDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-DoorDivider2.BorderSizePixel = 0
+local ObjDivider2 = Instance.new("Frame", Page8)
+ObjDivider2.Size = UDim2.new(0.9, 0, 0, 2)
+ObjDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ObjDivider2.BorderSizePixel = 0
 
--- --- SECTION 3: ALL ---
-createHeaderLabel(Page8, "All Doors Trigger")
+-- --- SECTION 3: MASS DESTRUCTION TRIGGERS ---
+createHeaderLabel(Page8, "All Objects Trigger")
 
-local FireCDAllBtn = createActionButton(Page8, "Fire CD ALL Doors", Color3.fromRGB(150, 30, 30))
+local FireCDAllBtn = createActionButton(Page8, "Fire CD ALL Doors & Gates", Color3.fromRGB(150, 30, 30))
 FireCDAllBtn.MouseButton1Click:Connect(function()
     if DoorsFolder then
-        for _, door in ipairs(DoorsFolder:GetChildren()) do fireDoorClickDetectors(door, 9000) end
+        for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end
+    end
+    if GatesFolder then
+        for _, gate in ipairs(GatesFolder:GetChildren()) do fireObjectClickDetectors(gate, 9000) end
     end
 end)
 
-createToggle(Page8, "Auto Fire CD ALL Doors", 0, "AutoFireCDAll")
+createToggle(Page8, "Auto Fire CD ALL Doors & Gates", 0, "AutoFireCDAll")
 
 L8:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page8.CanvasSize = UDim2.new(0, 0, 0, L8.AbsoluteContentSize.Y + 25)

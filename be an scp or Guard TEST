@@ -65,7 +65,7 @@ getgenv().DoorGateEspEnabled = false
 -- MỚI: REMOTES CONTROL CONFIG
 getgenv().Block096LoS = false
 getgenv().Block096Trigger = false
-getgenv().Spam173Detect = false -- Đã sửa: Đồng bộ trạng thái On/Off Spam SCP-173
+getgenv().Spam173Detect = false 
 
 -- CBRING V2 & SCP LOCK CONFIGURATION
 getgenv().TargetPlayerInput = ""
@@ -83,7 +83,6 @@ getgenv().AutoFireCDAll = false
 
 local selectedObject = nil
 local objectHighlight = nil
-local searchFilterMode = "All"
 
 local PlayerLockReady = false
 local TeamLockReady = false
@@ -151,15 +150,6 @@ local function updateStatusUI(text, isLocked)
 	end
 end
 
-local function formatNumberWithDots(amount)
-	local formatted = tostring(amount)
-	while true do
-		formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1.%2')
-		if k == 0 then break end
-	end
-	return formatted
-end
-
 local function getPlayerRole(player)
 	if not player or not player.Character then return "Unknown" end
 	if player.Team then
@@ -225,11 +215,6 @@ local function getActualDoorId(obj)
 	local idValue = obj:FindFirstChild("ID") or obj:FindFirstChild("DoorID") or obj:FindFirstChild("GateID")
 	if idValue and (idValue:IsA("StringValue") or idValue:IsA("IntValue") or idValue:IsA("NumberValue")) then
 		return tostring(idValue.Value)
-	end
-	local config = obj:FindFirstChild("Configuration") or obj:FindFirstChild("Settings")
-	if config then
-		local altId = config:FindFirstChild("ID") or config:FindFirstChild("DoorID")
-		if altId then return tostring(altId.Value) end
 	end
 	return obj.Name
 end
@@ -322,7 +307,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- CORE METATABLE HOOK (INTEGRATED DECOMPILED LOGIC)
+-- CORE METATABLE HOOK
 -- ==========================================
 if not getgenv()._origFire then
 	local mt = getrawmetatable(game)
@@ -333,33 +318,24 @@ if not getgenv()._origFire then
 		local args = {...}
 
 		if method == "FireServer" and not checkcaller() then
-			-- Chặn Gói Tin SCP-096 Từ Module Decompiled
-			if getgenv().Block096LoS and Remote_096LoSReport and self == Remote_096LoSReport then
-				return nil
-			end
-			if getgenv().Block096Trigger and Remote_096Trigger and self == Remote_096Trigger then
-				return nil
-			end
-			-- ĐÃ XÓA logic chặn 173Detect cũ tại đây để không chặn gói tin khi Spam tự động gửi đi.
+			if getgenv().Block096LoS and Remote_096LoSReport and self == Remote_096LoSReport then return nil end
+			if getgenv().Block096Trigger and Remote_096Trigger and self == Remote_096Trigger then return nil end
 		end
 
 		if method == "Raycast" and getgenv().SilentAimEnabled and not checkcaller() then
 			if CurrentSilentAimPart then
-				local fakeResult = {
+				return {
 					Instance = CurrentSilentAimPart,
 					Position = CurrentSilentAimPart.Position,
 					Normal = Vector3.new(0, 1, 0),
 					Material = CurrentSilentAimPart.Material
 				}
-				return fakeResult
 			end
 		end
 
 		if getgenv().rapidFireEnabled and (method == "FireServer" or method == "InvokeServer") then
 			if getgenv().DetectedRemote and self == getgenv().DetectedRemote then
-				for i = 1, (getgenv().rapidFire - 1) do
-					getgenv()._origFire(self, unpack(args))
-				end
+				for i = 1, (getgenv().rapidFire - 1) do getgenv()._origFire(self, unpack(args)) end
 				return getgenv()._origFire(self, ...)
 			end
 
@@ -367,12 +343,8 @@ if not getgenv()._origFire then
 				local argLower = string.lower(args[1])
 				if argLower == "shoot" or argLower == "fire" or argLower == "bullet" or string.find(argLower, "hit") then
 					getgenv().DetectedRemote = self
-					task.spawn(function()
-						updateStatusUI("LOCKED: " .. string.upper(tostring(self.Name)), true)
-					end)
-					for i = 1, (getgenv().rapidFire - 1) do
-						getgenv()._origFire(self, unpack(args))
-					end
+					task.spawn(function() updateStatusUI("LOCKED: " .. string.upper(tostring(self.Name)), true) end)
+					for i = 1, (getgenv().rapidFire - 1) do getgenv()._origFire(self, unpack(args)) end
 				end
 			end
 		end
@@ -381,11 +353,10 @@ if not getgenv()._origFire then
 	setreadonly(mt, true)
 end
 
--- Decompiled Script RenderStepped Loop Execution Logic (Auto Run)
+-- Decompiled Script RenderStepped Loop
 local v_u_12 = 0
 RunService.RenderStepped:Connect(function()
 	if getgenv().Block096LoS and getgenv().Block096Trigger then return end
-
 	local v41 = tick()
 	if v41 - v_u_12 < 0.1 then return end
 	v_u_12 = v41
@@ -406,9 +377,7 @@ RunService.RenderStepped:Connect(function()
 				local v48 = workspace:Raycast(Camera.CFrame.Position, v45.Position - Camera.CFrame.Position, v47)
 				if (not v48 or v48.Instance == v45) and Remote_096LoSReport and Remote_096Trigger then
 					Remote_096LoSReport:FireServer(false, SCP096Model)
-					if not getgenv().Block096Trigger then
-						Remote_096Trigger:FireServer(SCP096Model)
-					end
+					if not getgenv().Block096Trigger then Remote_096Trigger:FireServer(SCP096Model) end
 				end
 			end
 		end
@@ -429,9 +398,7 @@ end
 local function getSCPModelByNumber(numStr)
 	if numStr == "" then return nil end
 	for _, obj in ipairs(Workspace:GetChildren()) do
-		if obj:IsA("Model") and string.match(obj.Name, "^SCP%-" .. numStr) then
-			return obj
-		end
+		if obj:IsA("Model") and string.match(obj.Name, "^SCP%-" .. numStr) then return obj end
 	end
 	return nil
 end
@@ -439,204 +406,113 @@ end
 local function cbringCharacter(targetChar)
 	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
 		if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChildOfClass("Humanoid") and targetChar:FindFirstChildOfClass("Humanoid").Health > 0 then
-			local myHrp = LocalPlayer.Character.HumanoidRootPart
-			local targetHrp = targetChar.HumanoidRootPart
-			targetHrp.CFrame = myHrp.CFrame * CFrame.new(0, 0, -4)
+			targetChar.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4)
 		end
 	end
 end
 
 RunService.Heartbeat:Connect(function()
-	if getgenv().LockPlayerEnabled then
-		if PlayerLockReady then
-			local p = getSmartTargetPlayer(getgenv().TargetPlayerInput)
-			if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-				if not LockedPlayerPositions[p.Name] then
-					if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-						LockedPlayerPositions[p.Name] = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4)
-					else
-						LockedPlayerPositions[p.Name] = p.Character.HumanoidRootPart.CFrame
-					end
-				end
-				p.Character.HumanoidRootPart.CFrame = LockedPlayerPositions[p.Name]
+	if getgenv().LockPlayerEnabled and PlayerLockReady then
+		local p = getSmartTargetPlayer(getgenv().TargetPlayerInput)
+		if p and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			if not LockedPlayerPositions[p.Name] then
+				LockedPlayerPositions[p.Name] = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4) or p.Character.HumanoidRootPart.CFrame
 			end
+			p.Character.HumanoidRootPart.CFrame = LockedPlayerPositions[p.Name]
 		end
-	else
-		table.clear(LockedPlayerPositions)
-	end
+	else table.clear(LockedPlayerPositions) end
 
-	if getgenv().LockTeamEnabled then
-		if TeamLockReady then
-			for _, player in ipairs(Players:GetPlayers()) do
-				if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-					local shouldBring = false
-					if getgenv().TargetTeamSelection == "Enemies" then
-						if player.Team ~= LocalPlayer.Team then shouldBring = true end
-					else
-						if player.Team and player.Team.Name == getgenv().TargetTeamSelection then shouldBring = true end
+	if getgenv().LockTeamEnabled and TeamLockReady then
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+				local shouldBring = false
+				if getgenv().TargetTeamSelection == "Enemies" then
+					if player.Team ~= LocalPlayer.Team then shouldBring = true end
+				else
+					if player.Team and player.Team.Name == getgenv().TargetTeamSelection then shouldBring = true end
+				end
+				if shouldBring then
+					if not LockedTeamPositions[player.Name] then
+						LockedTeamPositions[player.Name] = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4) or player.Character.HumanoidRootPart.CFrame
 					end
-					if shouldBring then
-						if not LockedTeamPositions[player.Name] then
-							if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-								LockedTeamPositions[player.Name] = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -4)
-							else
-								LockedTeamPositions[player.Name] = player.Character.HumanoidRootPart.CFrame
-							end
-						end
-						player.Character.HumanoidRootPart.CFrame = LockedTeamPositions[player.Name]
-					end
+					player.Character.HumanoidRootPart.CFrame = LockedTeamPositions[player.Name]
 				end
 			end
 		end
-	else
-		table.clear(LockedTeamPositions)
-	end
+	else table.clear(LockedTeamPositions) end
 
-	if getgenv().LockSCPEnabled then
-		if ScpLockReady then
-			local scpModel = getSCPModelByNumber(getgenv().TargetSCPNumber)
-			if scpModel and scpModel:FindFirstChild("HumanoidRootPart") then
-				if not LockedScpPositions[scpModel.Name] then
-					if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-						LockedScpPositions[scpModel.Name] = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5)
-					else
-						LockedScpPositions[scpModel.Name] = scpModel.HumanoidRootPart.CFrame
-					end
-				end
-				scpModel.HumanoidRootPart.CFrame = LockedScpPositions[scpModel.Name]
+	if getgenv().LockSCPEnabled and ScpLockReady then
+		local scpModel = getSCPModelByNumber(getgenv().TargetSCPNumber)
+		if scpModel and scpModel:FindFirstChild("HumanoidRootPart") then
+			if not LockedScpPositions[scpModel.Name] then
+				LockedScpPositions[scpModel.Name] = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -5) or scpModel.HumanoidRootPart.CFrame
 			end
+			scpModel.HumanoidRootPart.CFrame = LockedScpPositions[scpModel.Name]
 		end
-	else
-		table.clear(LockedScpPositions)
-	end
+	else table.clear(LockedScpPositions) end
 end)
 
--- Visuals: Players & Doors/Gates Dynamic Render Loop
+-- Visuals Render Loop
 RunService.RenderStepped:Connect(function()
-	-- 1. HỆ THỐNG ESP CHAMS CHO NGƯỜI CHƠI
 	for _, obj in ipairs(Workspace:GetChildren()) do
 		if obj:IsA("Model") and obj ~= LocalPlayer.Character and obj:FindFirstChild("Head") then
 			local isSCP = string.match(obj.Name, "^SCP%-%d+") ~= nil
 			if getgenv().EspEnabled then
-				local hl = obj:FindFirstChild("NexusChams")
-				if not hl then
-					hl = Instance.new("Highlight")
-					hl.Name = "NexusChams"
-					hl.FillTransparency = 0.5
-					hl.OutlineTransparency = 0
-					hl.Parent = obj
-				end
+				local hl = obj:FindFirstChild("NexusChams") or Instance.new("Highlight", obj)
+				hl.Name = "NexusChams"; hl.FillTransparency = 0.5; hl.OutlineTransparency = 0; hl.Enabled = true
 				local ply = Players:GetPlayerFromCharacter(obj)
 				local modelColor = ply and ply.TeamColor and ply.TeamColor.Color or Color3.fromRGB(255, 50, 50)
-				local displayName = ply and ply.DisplayName or obj.Name
+				hl.FillColor = modelColor; hl.OutlineColor = modelColor
 
-				hl.FillColor = modelColor
-				hl.OutlineColor = modelColor
-				hl.Enabled = true
-
-				local bb = obj:FindFirstChild("NexusEspTag")
-				if not bb then
-					bb = Instance.new("BillboardGui")
-					bb.Name = "NexusEspTag"
-					bb.Size = UDim2.new(0, 200, 0, 50)
-					bb.AlwaysOnTop = true
-					bb.ExtentsOffset = Vector3.new(0, 2.5, 0)
-					local tl = Instance.new("TextLabel")
-					tl.Name = "TextLabel"
-					tl.Size = UDim2.new(1, 0, 1, 0)
-					tl.BackgroundTransparency = 1
-					tl.Font = Enum.Font.GothamBold
-					tl.TextSize = 12
-					tl.TextStrokeTransparency = 0
-					tl.Parent = bb
-					bb.Parent = obj
+				local bb = obj:FindFirstChild("NexusEspTag") or Instance.new("BillboardGui", obj)
+				if bb.Name ~= "NexusEspTag" then
+					bb.Name = "NexusEspTag"; bb.Size = UDim2.new(0, 200, 0, 50); bb.AlwaysOnTop = true; bb.ExtentsOffset = Vector3.new(0, 2.5, 0)
+					local tl = Instance.new("TextLabel", bb); tl.Name = "TextLabel"; tl.Size = UDim2.new(1, 0, 1, 0); tl.BackgroundTransparency = 1; tl.Font = Enum.Font.GothamBold; tl.TextSize = 12; tl.TextStrokeTransparency = 0
 				end
 				local tl = bb:FindFirstChild("TextLabel")
 				if tl then
 					tl.TextColor3 = modelColor
 					local displayText = ""
-					local distance = 0
-					if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and obj:FindFirstChild("HumanoidRootPart") then
-						distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude)
-					end
-					if getgenv().ShowSCPNum and isSCP then
-						displayText = "[" .. string.match(obj.Name, "^SCP%-%d+[^%s]*") .. "]\n"
-					end
-					if getgenv().ShowInfo then
-						displayText = displayText .. displayName .. " [" .. distance .. "m]"
-					end
-					tl.Text = displayText
-					bb.Enabled = (displayText ~= "")
+					local distance = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and obj:FindFirstChild("HumanoidRootPart") and math.floor((LocalPlayer.Character.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude) or 0
+					if getgenv().ShowSCPNum and isSCP then displayText = "[" .. string.match(obj.Name, "^SCP%-%d+[^%s]*") .. "]\n" end
+					if getgenv().ShowInfo then displayText = displayText .. (ply and ply.DisplayName or obj.Name) .. " [" .. distance .. "m]" end
+					tl.Text = displayText; bb.Enabled = (displayText ~= "")
 				end
 			else
-				local hl = obj:FindFirstChild("NexusChams")
-				if hl then hl.Enabled = false end
-				local bb = obj:FindFirstChild("NexusEspTag")
-				if bb then bb.Enabled = false end
+				if obj:FindFirstChild("NexusChams") then obj.NexusChams.Enabled = false end
+				if obj:FindFirstChild("NexusEspTag") then obj.NexusEspTag.Enabled = false end
 			end
 		end
 	end
 
-	-- 2. HỆ THỐNG ESP CHAMS & ID CHO DOORS & GATES
 	local function processFolderESP(folder, color, labelType)
 		if not folder then return end
-		local children = folder:GetChildren()
-		for idx, obj in ipairs(children) do
+		for _, obj in ipairs(folder:GetChildren()) do
 			if getgenv().DoorGateEspEnabled then
-				local hl = obj:FindFirstChild("DoorGateCham")
-				if not hl then
-					hl = Instance.new("Highlight")
-					hl.Name = "DoorGateCham"
-					hl.FillTransparency = 0.6
-					hl.OutlineTransparency = 0.1
-					hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-					hl.Parent = obj
-				end
-				hl.FillColor = color
-				hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-				hl.Enabled = true
-
+				local hl = obj:FindFirstChild("DoorGateCham") or Instance.new("Highlight", obj)
+				hl.Name = "DoorGateCham"; hl.FillTransparency = 0.6; hl.OutlineTransparency = 0.1; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; hl.FillColor = color; hl.OutlineColor = Color3.fromRGB(255, 255, 255); hl.Enabled = true
 				local targetPart = obj:FindFirstChild("Hitbox") or obj:FindFirstChildOfClass("BasePart") or obj:FindFirstChild("Main")
 				if targetPart then
-					local bb = targetPart:FindFirstChild("DoorGateTag")
-					if not bb then
-						bb = Instance.new("BillboardGui")
-						bb.Name = "DoorGateTag"
-						bb.Size = UDim2.new(0, 140, 0, 45)
-						bb.AlwaysOnTop = true
-						local tl = Instance.new("TextLabel")
-						tl.Name = "TextLabel"
-						tl.Size = UDim2.new(1, 0, 1, 0)
-						tl.BackgroundTransparency = 1
-						tl.Font = Enum.Font.GothamBold
-						tl.TextSize = 13
-						tl.TextStrokeTransparency = 0
-						tl.Parent = bb
-						bb.Parent = targetPart
+					local bb = targetPart:FindFirstChild("DoorGateTag") or Instance.new("BillboardGui", targetPart)
+					if bb.Name ~= "DoorGateTag" then
+						bb.Name = "DoorGateTag"; bb.Size = UDim2.new(0, 140, 0, 45); bb.AlwaysOnTop = true
+						local tl = Instance.new("TextLabel", bb); tl.Name = "TextLabel"; tl.Size = UDim2.new(1, 0, 1, 0); tl.BackgroundTransparency = 1; tl.Font = Enum.Font.GothamBold; tl.TextSize = 13; tl.TextStrokeTransparency = 0
 					end
-					local tl = bb:FindFirstChild("TextLabel")
-					if tl then
-						tl.TextColor3 = color
-						local actualId = getActualDoorId(obj)
-						tl.Text = "[" .. labelType .. " ID]\n" .. actualId
-						bb.Enabled = true
-					end
+					bb:FindFirstChild("TextLabel").TextColor3 = color
+					bb:FindFirstChild("TextLabel").Text = "[" .. labelType .. " ID]\n" .. getActualDoorId(obj)
+					bb.Enabled = true
 				end
 			else
-				local hl = obj:FindFirstChild("DoorGateCham")
-				if hl then hl.Enabled = false end
-				for _, desc in ipairs(obj:GetDescendants()) do
-					if desc.Name == "DoorGateTag" then desc.Enabled = false end
-				end
+				if obj:FindFirstChild("DoorGateCham") then obj.DoorGateCham.Enabled = false end
+				for _, desc in ipairs(obj:GetDescendants()) do if desc.Name == "DoorGateTag" then desc.Enabled = false end end
 			end
 		end
 	end
-
 	processFolderESP(DoorsFolder, Color3.fromRGB(0, 255, 100), "Door")
 	processFolderESP(GatesFolder, Color3.fromRGB(255, 220, 0), "Gate")
 end)
 
--- Movement: TPWalk Speed Motor
+-- Movement Engine
 RunService.Heartbeat:Connect(function()
 	if getgenv().TpWalkEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 		local humanoid = LocalPlayer.Character.Humanoid
@@ -646,164 +522,77 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- BACKGROUND SCANNER THREAD
+-- Aimbot Scan Background Thread
 task.spawn(function()
 	while true do
 		if (getgenv().AimbotEnabled or getgenv().SilentAimEnabled) and not IsSwipeBreaking then
 			local targetCenter = getDynamicFOVCenter()
 			local validEnemies = {}
-			local allPlayers = Players:GetPlayers()
-
-			for i = 1, #allPlayers do
-				local player = allPlayers[i]
-				if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
-					if isEnemy(player) then
-						local rootPart = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Head")
-						if rootPart then
-							local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-							if onScreen then
-								local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - targetCenter).Magnitude
-								if distanceToCenter < getgenv().AimbotFOV then
-									table.insert(validEnemies, {
-										Player = player,
-										Dist = distanceToCenter,
-										WorldDist = (rootPart.Position - Camera.CFrame.Position).Magnitude,
-										ScreenPos = Vector2.new(screenPos.X, screenPos.Y)
-									})
-								end
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 and isEnemy(player) then
+					local rootPart = player.Character:FindFirstChild("HumanoidRootPart") or player.Character:FindFirstChild("Head")
+					if rootPart then
+						local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+						if onScreen then
+							local dist = (Vector2.new(screenPos.X, screenPos.Y) - targetCenter).Magnitude
+							if dist < getgenv().AimbotFOV then
+								table.insert(validEnemies, {Player = player, Dist = dist, ScreenPos = Vector2.new(screenPos.X, screenPos.Y)})
 							end
 						end
 					end
 				end
 			end
-
 			table.sort(validEnemies, function(a, b) return a.Dist < b.Dist end)
-
-			local finalAimbotPart = nil
-			local maxChecks = math.clamp(#validEnemies, 1, 3)
-			for i = 1, maxChecks do
-				local targetEnemy = validEnemies[i]
-				if targetEnemy then
-					local targetPart = getAimbotTargetPart(targetEnemy.Player.Character)
-					if targetPart then finalAimbotPart = targetPart; break end
-				end
-			end
-			CurrentClosestPart = finalAimbotPart
-
-			if #validEnemies > 0 and getgenv().SilentAimEnabled then
-				local mode = getgenv().SilentAimTargetMode
-				if mode == "Nearest" then
-					table.sort(validEnemies, function(a, b) return a.Dist < b.Dist end)
-				elseif mode == "Farthest" then
-					table.sort(validEnemies, function(a, b) return a.Dist > b.Dist end)
-				elseif mode == "Random" then
-					local randIndex = math.random(1, #validEnemies)
-					validEnemies[1], validEnemies[randIndex] = validEnemies[randIndex], validEnemies[1]
-				end
-
-				local finalSilentPart = nil
-				for i = 1, #validEnemies do
-					local targetEnemy = validEnemies[i]
-					local targetPart = getAimbotTargetPart(targetEnemy.Player.Character)
-					if targetPart then finalSilentPart = targetPart; break end
-				end
-				CurrentSilentAimPart = finalSilentPart
-			else
-				CurrentSilentAimPart = nil
-			end
+			CurrentClosestPart = #validEnemies > 0 and getAimbotTargetPart(validEnemies[1].Player.Character) or nil
+			CurrentSilentAimPart = CurrentClosestPart
 		else
-			CurrentClosestPart = nil
-			CurrentSilentAimPart = nil
+			CurrentClosestPart, CurrentSilentAimPart = nil, nil
 		end
 		task.wait(0.035)
 	end
 end)
 
--- Aimbot Core & FOV Visual Rendering
+-- Render Aimbot Circle
 RunService.RenderStepped:Connect(function()
 	local targetCenter = getDynamicFOVCenter()
-	FOVCircle.Radius = getgenv().AimbotFOV
-	FOVCircle.Position = targetCenter
+	FOVCircle.Radius = getgenv().AimbotFOV; FOVCircle.Position = targetCenter
 	FOVCircle.Visible = getgenv().ShowFOV and (getgenv().AimbotEnabled or getgenv().SilentAimEnabled)
-
 	if getgenv().SilentAimEnabled and CurrentSilentAimPart and not IsSwipeBreaking then
 		FOVCircle.Color = Color3.fromRGB(0, 255, 0)
 		local screenPos, _ = Camera:WorldToViewportPoint(CurrentSilentAimPart.Position)
-		TracerLine.From = targetCenter
-		TracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
-		TracerLine.Visible = true
-
-		if getgenv().SilentAimBoxDetect and CurrentSilentAimPart.Parent and CurrentSilentAimPart.Parent:FindFirstChild("HumanoidRootPart") then
-			local targetChar = CurrentSilentAimPart.Parent
-			local hrp = targetChar.HumanoidRootPart
-			local _, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-			if onScreen then
-				local extentsSize = targetChar:GetExtentsSize()
-				local topWorld = (hrp.CFrame * CFrame.new(0, extentsSize.Y / 2, 0)).Position
-				local bottomWorld = (hrp.CFrame * CFrame.new(0, -extentsSize.Y / 2, 0)).Position
-				local topScreen = Camera:WorldToViewportPoint(topWorld)
-				local bottomScreen = Camera:WorldToViewportPoint(bottomWorld)
-				local boxHeight = math.abs(topScreen.Y - bottomScreen.Y)
-				local boxWidth = boxHeight * 0.65
-				TargetBox.Size = Vector2.new(boxWidth, boxHeight)
-				TargetBox.Position = Vector2.new(topScreen.X - (boxWidth / 2), topScreen.Y)
-				TargetBox.Visible = true
-			else
-				TargetBox.Visible = false
-			end
-		else
-			TargetBox.Visible = false
-		end
+		TracerLine.From = targetCenter; TracerLine.To = Vector2.new(screenPos.X, screenPos.Y); TracerLine.Visible = true
 	else
-		FOVCircle.Color = Color3.fromRGB(255, 0, 127)
-		TracerLine.Visible = false
-		TargetBox.Visible = false
+		FOVCircle.Color = Color3.fromRGB(255, 0, 127); TracerLine.Visible = false; TargetBox.Visible = false
 	end
-
 	if getgenv().AimbotEnabled and CurrentClosestPart and not IsSwipeBreaking then
 		Camera.CFrame = CFrame.new(Camera.CFrame.Position, CurrentClosestPart.Position)
 	end
 end)
 
--- Hitbox Expander Task Loop
+-- Hitbox Expander Thread Loop
 task.spawn(function()
 	while task.wait(0.5) do
 		for _, player in ipairs(Players:GetPlayers()) do
 			if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 				local hrp = player.Character.HumanoidRootPart
-				local role = getPlayerRole(player)
 				if not OriginalHitboxes[player.Name] then OriginalHitboxes[player.Name] = hrp.Size end
-
-				local shouldExpand = false
-				if getgenv().HitboxTargetTeam == "All" then shouldExpand = true
-				elseif getgenv().HitboxTargetTeam == "SCP" and role == "SCP" then shouldExpand = true
-				elseif getgenv().HitboxTargetTeam == "Guard" and role == "Guard" then shouldExpand = true
-				elseif getgenv().HitboxTargetTeam == "MTF" and role == "MTF" then shouldExpand = true end
-
-				if getgenv().HitboxEnabled and shouldExpand then
+				if getgenv().HitboxEnabled then
 					hrp.Size = Vector3.new(getgenv().HitboxSize, getgenv().HitboxSize, getgenv().HitboxSize)
-					hrp.Transparency = 0.7
-					hrp.Color = Color3.fromRGB(255, 0, 0)
-					hrp.CanCollide = false
+					hrp.Transparency = 0.7; hrp.Color = Color3.fromRGB(255, 0, 0); hrp.CanCollide = false
 				else
 					hrp.Size = OriginalHitboxes[player.Name] or Vector3.new(2, 2, 2)
-					hrp.Transparency = 1
-					hrp.CanCollide = true
+					hrp.Transparency = 1; hrp.CanCollide = true
 				end
 			end
 		end
 	end
 end)
 
--- ====================================================================
--- VỊ TRÍ 2: VÒNG LẶP TỰ ĐỘNG SPAM 173DETECT MỖI 0.5 GIÂY (CHÈN TRƯỚC GIAO DIỆN)
--- ====================================================================
+-- Auto Spam 173Detect (0.5s) Thread Loop
 task.spawn(function()
 	while true do
-		if getgenv().Spam173Detect and Remote_173Detect then
-			Remote_173Detect:FireServer()
-		end
-		task.wait(0.5) -- Giãn cách chính xác 0.5 giây
+		if getgenv().Spam173Detect and Remote_173Detect then Remote_173Detect:FireServer() end
+		task.wait(0.5)
 	end
 end)
 
@@ -811,126 +600,66 @@ end)
 -- PREMIUM DUAL-PLATFORM INTERFACE DESIGN
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MobileNexusGUI"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Name = "MobileNexusGUI"; ScreenGui.ResetOnSpawn = false; ScreenGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 310, 0, 340)
-MainFrame.Position = UDim2.new(0.5, -155, 0.3, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.BackgroundTransparency = 0.1
-MainFrame.Active = true
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = ScreenGui
+MainFrame.Name = "MainFrame"; MainFrame.Size = UDim2.new(0, 310, 0, 340); MainFrame.Position = UDim2.new(0.5, -155, 0.3, 0); MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20); MainFrame.BackgroundTransparency = 0.1; MainFrame.Active = true; MainFrame.ClipsDescendants = true; MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 45)
-TitleBar.BackgroundTransparency = 1
-TitleBar.Active = true
-TitleBar.Parent = MainFrame
+TitleBar.Size = UDim2.new(1, 0, 0, 45); TitleBar.BackgroundTransparency = 1; TitleBar.Active = true; TitleBar.Parent = MainFrame
 
 local PrevBtn = Instance.new("TextButton")
-PrevBtn.Size = UDim2.new(0, 35, 0, 35)
-PrevBtn.Position = UDim2.new(0, 8, 0, 5)
-PrevBtn.Text = "<"
-PrevBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-PrevBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-PrevBtn.Font = Enum.Font.GothamBold
-PrevBtn.Parent = TitleBar
+PrevBtn.Size = UDim2.new(0, 35, 0, 35); PrevBtn.Position = UDim2.new(0, 8, 0, 5); PrevBtn.Text = "<"; PrevBtn.TextColor3 = Color3.fromRGB(255, 255, 255); PrevBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); PrevBtn.Font = Enum.Font.GothamBold; PrevBtn.Parent = TitleBar
 Instance.new("UICorner", PrevBtn).CornerRadius = UDim.new(0, 6)
 
 local NextBtn = Instance.new("TextButton")
-NextBtn.Size = UDim2.new(0, 35, 0, 35)
-NextBtn.Position = UDim2.new(1, -85, 0, 5)
-NextBtn.Text = ">"
-NextBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-NextBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-NextBtn.Font = Enum.Font.GothamBold
-NextBtn.Parent = TitleBar
+NextBtn.Size = UDim2.new(0, 35, 0, 35); NextBtn.Position = UDim2.new(1, -85, 0, 5); NextBtn.Text = ">"; NextBtn.TextColor3 = Color3.fromRGB(255, 255, 255); NextBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); NextBtn.Font = Enum.Font.GothamBold; NextBtn.Parent = TitleBar
 Instance.new("UICorner", NextBtn).CornerRadius = UDim.new(0, 6)
 
 local MinBtn = Instance.new("TextButton")
-MinBtn.Size = UDim2.new(0, 35, 0, 35)
-MinBtn.Position = UDim2.new(1, -43, 0, 5)
-MinBtn.Text = "[-]"
-MinBtn.TextColor3 = Color3.fromRGB(255, 0, 100)
-MinBtn.BackgroundColor3 = Color3.fromRGB(45, 15, 25)
-MinBtn.Font = Enum.Font.GothamBold
-MinBtn.TextSize = 12
-MinBtn.Parent = TitleBar
+MinBtn.Size = UDim2.new(0, 35, 0, 35); MinBtn.Position = UDim2.new(1, -43, 0, 5); MinBtn.Text = "[-]"; MinBtn.TextColor3 = Color3.fromRGB(255, 0, 100); MinBtn.BackgroundColor3 = Color3.fromRGB(45, 15, 25); MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 12; MinBtn.Parent = TitleBar
 Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
 local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -140, 1, 0)
-TitleText.Position = UDim2.new(0, 50, 0, 0)
-TitleText.Text = "P1: WEAPON MODS"
-TitleText.TextColor3 = Color3.fromRGB(0, 255, 150)
-TitleText.Font = Enum.Font.GothamBold
-TitleText.TextSize = 12
-TitleText.BackgroundTransparency = 1
-TitleText.Parent = TitleBar
+TitleText.Size = UDim2.new(1, -140, 1, 0); TitleText.Position = UDim2.new(0, 50, 0, 0); TitleText.Text = "P1: WEAPON MODS"; TitleText.TextColor3 = Color3.fromRGB(0, 255, 150); TitleText.Font = Enum.Font.GothamBold; TitleText.TextSize = 12; TitleText.BackgroundTransparency = 1; TitleText.Parent = TitleBar
 
 local OpenBtn = Instance.new("TextButton")
-OpenBtn.Name = "OpenBtn"
-OpenBtn.Size = UDim2.new(0, 55, 0, 55)
-OpenBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-OpenBtn.Text = "OPEN"
-OpenBtn.TextColor3 = Color3.fromRGB(0, 255, 150)
-OpenBtn.Font = Enum.Font.GothamBold
-OpenBtn.TextSize = 12
-OpenBtn.Visible = false
-OpenBtn.Parent = ScreenGui
+OpenBtn.Name = "OpenBtn"; OpenBtn.Size = UDim2.new(0, 55, 0, 55); OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20); OpenBtn.Text = "OPEN"; OpenBtn.TextColor3 = Color3.fromRGB(0, 255, 150); OpenBtn.Font = Enum.Font.GothamBold; OpenBtn.TextSize = 12; OpenBtn.Visible = false; OpenBtn.Parent = ScreenGui
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
 
 local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, 0, 1, -45)
-ContentFrame.Position = UDim2.new(0, 0, 0, 45)
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.Parent = MainFrame
+ContentFrame.Size = UDim2.new(1, 0, 1, -45); ContentFrame.Position = UDim2.new(0, 0, 0, 45); ContentFrame.BackgroundTransparency = 1; ContentFrame.Parent = MainFrame
 
 local Pages = {}
 local CurrentPage = 1
 
-local function createPage(name, isScrollable)
-	local p
-	if isScrollable then
-		p = Instance.new("ScrollingFrame", ContentFrame)
-		p.ScrollBarThickness = 5
-		p.ScrollingDirection = Enum.ScrollingDirection.Y
-		p.CanvasSize = UDim2.new(0, 0, 0, 420)
-	else
-		p = Instance.new("Frame", ContentFrame)
-	end
+local function createPage(name)
+	local p = Instance.new("ScrollingFrame", ContentFrame)
 	p.Name = name; p.Size = UDim2.new(1, 0, 1, 0); p.BackgroundTransparency = 1; p.Visible = false
+	p.ScrollBarThickness = 4; p.ScrollingDirection = Enum.ScrollingDirection.Y; p.CanvasSize = UDim2.new(0, 0, 0, 380)
+	local layout = Instance.new("UIListLayout", p)
+	layout.Padding = UDim.new(0, 8); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Instance.new("UIPadding", p).PaddingTop = UDim.new(0, 8)
 	table.insert(Pages, p)
 	return p
 end
 
--- TRANG SẮP XẾP THỨ TỰ
-local Page1 = createPage("WeaponMods", false)
-local Page2 = createPage("Aimbot", true)
-local Page3 = createPage("Hitbox", false)
-local Page4 = createPage("VisualsMovement", true)
-local Page5 = createPage("CbringV2", true)
-local Page6 = createPage("PlayerStatus", true)
-local Page7 = createPage("AutoDoors", true)
-local Page8 = createPage("RemotesControl", true)
-local Page9 = createPage("Credit", false)
+-- TẠO 9 TRANG KHUNG
+local Page1 = createPage("WeaponMods")
+local Page2 = createPage("Aimbot")
+local Page3 = createPage("Hitbox")
+local Page4 = createPage("VisualsMovement")
+local Page5 = createPage("CbringV2")
+local Page6 = createPage("PlayerStatus")
+local Page7 = createPage("AutoDoors")
+local Page8 = createPage("RemotesControl")
+local Page9 = createPage("Credit")
 
 local PageTitles = {
-	"P1: WEAPON MODS",
-	"P2: AIMBOT CONFIG",
-	"P3: HITBOX EXPAN",
-	"P4: ESP & MOVEMENT",
-	"P5: CBRING V2",
-	"P6: PLAYER STATUS",
-	"P7: AUTO DOORS & GATES",
-	"P8: REMOTES CONTROL",
-	"P9: CREDITS HUB"
+	"P1: WEAPON MODS", "P2: AIMBOT CONFIG", "P3: HITBOX EXPAN",
+	"P4: ESP & MOVEMENT", "P5: CBRING V2", "P6: PLAYER STATUS",
+	"P7: AUTO DOORS & GATES", "P8: REMOTES CONTROL", "P9: CREDITS HUB"
 }
 
 local function showPage(index)
@@ -942,247 +671,177 @@ showPage(1)
 PrevBtn.MouseButton1Click:Connect(function() CurrentPage = CurrentPage == 1 and #Pages or CurrentPage - 1 showPage(CurrentPage) end)
 NextBtn.MouseButton1Click:Connect(function() CurrentPage = CurrentPage == #Pages and 1 or CurrentPage + 1 showPage(CurrentPage) end)
 
--- DRAG ENGINE (PC & MOBILE)
-local Dragging = false
-local DragInput, DragStart, StartPos
-
-local function update(input)
-	local delta = input.Position - DragStart
-	MainFrame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
-end
-
+-- Kéo thả UI Engine
+local Dragging, DragInput, DragStart, StartPos
 TitleBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		Dragging = true
-		DragStart = input.Position
-		StartPos = MainFrame.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then Dragging = false end
-		end)
+		Dragging = true; DragStart = input.Position; StartPos = MainFrame.Position
+		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then Dragging = false end end)
 	end
 end)
-
-TitleBar.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then DragInput = input end
-end)
-
+TitleBar.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then DragInput = input end end)
 UserInputService.InputChanged:Connect(function(input)
-	if input == DragInput and Dragging then update(input) end
+	if input == DragInput and Dragging then
+		local delta = input.Position - DragStart
+		MainFrame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
+	end
 end)
 
 local savedSize = MainFrame.Size
 MinBtn.MouseButton1Click:Connect(function()
-	local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 310, 0, 45)})
-	minimizeTween:Play()
-	minimizeTween.Completed:Connect(function()
-		MainFrame.Visible = false
-		OpenBtn.Position = UDim2.new(0, math.clamp(MainFrame.Position.X.Offset + 120, 10, Camera.ViewportSize.X - 65), 0, math.clamp(MainFrame.Position.Y.Offset, 10, Camera.ViewportSize.Y - 65))
-		OpenBtn.Visible = true
-	end)
+	TweenService:Create(MainFrame, TweenInfo.new(0.2), {Size = UDim2.new(0, 310, 0, 45)}):Play()
+	task.wait(0.2); MainFrame.Visible = false
+	OpenBtn.Position = UDim2.new(0, math.clamp(MainFrame.Position.X.Offset + 120, 10, Camera.ViewportSize.X - 65), 0, math.clamp(MainFrame.Position.Y.Offset, 10, Camera.ViewportSize.Y - 65))
+	OpenBtn.Visible = true
 end)
+OpenBtn.MouseButton1Click:Connect(function() OpenBtn.Visible = false; MainFrame.Size = UDim2.new(0, 310, 0, 45); MainFrame.Visible = true; TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = savedSize}):Play() end)
 
-OpenBtn.MouseButton1Click:Connect(function()
-	OpenBtn.Visible = false
-	MainFrame.Size = UDim2.new(0, 310, 0, 45)
-	MainFrame.Visible = true
-	TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = savedSize}):Play()
-end)
-
-local function createToggle(parent, text, posY, globalVarName)
-	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(0.9, 0, 0, 35)
-	if posY and posY > 0 then Btn.Position = UDim2.new(0.05, 0, 0, posY) else Btn.Position = UDim2.new(0.05, 0, 0, 0) end
-	Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-	Btn.Text = text .. ": OFF"
-	Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	Btn.Font = Enum.Font.GothamBold
-	Btn.TextSize = 11
-	Btn.Parent = parent
+-- Các hàm Helper Khởi tạo Đối tượng Giao diện
+local function createToggle(parent, text, globalVarName)
+	local Btn = Instance.new("TextButton", parent)
+	Btn.Size = UDim2.new(0.92, 0, 0, 36); Btn.BackgroundColor3 = getgenv()[globalVarName] and Color3.fromRGB(0, 130, 220) or Color3.fromRGB(40, 40, 40)
+	Btn.Text = text .. (getgenv()[globalVarName] and ": ON" or ": OFF"); Btn.TextColor3 = Color3.fromRGB(255, 255, 255); Btn.Font = Enum.Font.GothamBold; Btn.TextSize = 11
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-
-	if getgenv()[globalVarName] then
-		Btn.Text = text .. ": ON"
-		Btn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-	end
-
 	Btn.MouseButton1Click:Connect(function()
 		getgenv()[globalVarName] = not getgenv()[globalVarName]
 		Btn.Text = text .. (getgenv()[globalVarName] and ": ON" or ": OFF")
-		Btn.BackgroundColor3 = getgenv()[globalVarName] and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(45, 45, 45)
+		Btn.BackgroundColor3 = getgenv()[globalVarName] and Color3.fromRGB(0, 130, 220) or Color3.fromRGB(40, 40, 40)
 	end)
 	return Btn
 end
 
 local function createDelayToggle(parent, text, globalVarName, motorFlagName)
-	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(0.9, 0, 0, 35)
-	Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-	Btn.Text = text .. ": OFF"
-	Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	Btn.Font = Enum.Font.GothamBold
-	Btn.TextSize = 11
-	Btn.Parent = parent
+	local Btn = Instance.new("TextButton", parent)
+	Btn.Size = UDim2.new(0.92, 0, 0, 36); Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40); Btn.Text = text .. ": OFF"; Btn.TextColor3 = Color3.fromRGB(255, 255, 255); Btn.Font = Enum.Font.GothamBold; Btn.TextSize = 11
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-
 	Btn.MouseButton1Click:Connect(function()
 		getgenv()[globalVarName] = not getgenv()[globalVarName]
 		if getgenv()[globalVarName] then
-			Btn.Text = "PREPARING (1s)..."
-			Btn.BackgroundColor3 = Color3.fromRGB(230, 120, 0)
-			task.wait(1.0)
+			Btn.Text = "LOCKING (1s)..."; Btn.BackgroundColor3 = Color3.fromRGB(220, 120, 0); task.wait(1)
 			if getgenv()[globalVarName] then
 				if motorFlagName == "PlayerLockReady" then PlayerLockReady = true end
 				if motorFlagName == "TeamLockReady" then TeamLockReady = true end
 				if motorFlagName == "ScpLockReady" then ScpLockReady = true end
-				Btn.Text = text .. ": LOCKED ON"
-				Btn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+				Btn.Text = text .. ": ACTIVE"; Btn.BackgroundColor3 = Color3.fromRGB(0, 130, 220)
 			end
 		else
 			if motorFlagName == "PlayerLockReady" then PlayerLockReady = false end
 			if motorFlagName == "TeamLockReady" then TeamLockReady = false end
 			if motorFlagName == "ScpLockReady" then ScpLockReady = false end
-			Btn.Text = text .. ": OFF"
-			Btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+			Btn.Text = text .. ": OFF"; Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 		end
 	end)
-	return Btn
 end
 
-local function createTextBox(parent, labelText, placeholder, posY)
-	local Frame = Instance.new("Frame")
-	Frame.Size = UDim2.new(0.9, 0, 0, 35)
-	if posY and posY > 0 then Frame.Position = UDim2.new(0.05, 0, 0, posY) end
-	Frame.BackgroundTransparency = 1
-	Frame.Parent = parent
-
-	local Label = Instance.new("TextLabel")
-	Label.Size = UDim2.new(0.5, 0, 1, 0)
-	Label.Text = labelText
-	Label.TextColor3 = Color3.fromRGB(200, 200, 200)
-	Label.Font = Enum.Font.GothamSemibold
-	Label.TextSize = 11
-	Label.TextXAlignment = Enum.TextXAlignment.Left
-	Label.BackgroundTransparency = 1
-	Label.Parent = Frame
-
-	local Box = Instance.new("TextBox")
-	Box.Size = UDim2.new(0.48, 0, 1, 0)
-	Box.Position = UDim2.new(0.52, 0, 0, 0)
-	Box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	Box.TextColor3 = Color3.fromRGB(255, 255, 255)
-	Box.PlaceholderText = placeholder
-	Box.Text = ""
-	Box.Font = Enum.Font.Gotham
-	Box.TextSize = 11
-	Box.Parent = Frame
+local function createTextBox(parent, labelText, placeholder)
+	local Frame = Instance.new("Frame", parent); Frame.Size = UDim2.new(0.92, 0, 0, 36); Frame.BackgroundTransparency = 1
+	local Label = Instance.new("TextLabel", Frame); Label.Size = UDim2.new(0.45, 0, 1, 0); Label.Text = labelText; Label.TextColor3 = Color3.fromRGB(200, 200, 200); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 11; Label.TextXAlignment = Enum.TextXAlignment.Left; Label.BackgroundTransparency = 1
+	local Box = Instance.new("TextBox", Frame); Box.Size = UDim2.new(0.53, 0, 1, 0); Box.Position = UDim2.new(0.47, 0, 0, 0); Box.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Box.TextColor3 = Color3.fromRGB(255, 255, 255); Box.PlaceholderText = placeholder; Box.Text = ""; Box.Font = Enum.Font.Gotham; Box.TextSize = 11
 	Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
-
-	Box.FocusLost:Connect(function(enterPressed)
-		if enterPressed then
-			local currentBg = Box.BackgroundColor3
-			Box.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-			Box.BackgroundTransparency = 0.2
-			TweenService:Create(Box, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {BackgroundColor3 = currentBg, BackgroundTransparency = 0}):Play()
-		end
-	end)
 	return Box
 end
 
-local function createActionButton(parent, text, bgColor)
-	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(0.9, 0, 0, 35)
-	Btn.BackgroundColor3 = bgColor
-	Btn.Text = text
-	Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	Btn.Font = Enum.Font.GothamBold
-	Btn.TextSize = 11
-	Btn.Parent = parent
+local function createSlider(parent, text, min, max, globalVarName)
+	local Frame = Instance.new("Frame", parent); Frame.Size = UDim2.new(0.92, 0, 0, 42); Frame.BackgroundTransparency = 1
+	local Label = Instance.new("TextLabel", Frame); Label.Size = UDim2.new(1, 0, 0, 18); Label.Text = text .. ": " .. tostring(getgenv()[globalVarName]); Label.TextColor3 = Color3.fromRGB(230, 230, 230); Label.Font = Enum.Font.GothamSemibold; Label.TextSize = 11; Label.TextXAlignment = Enum.TextXAlignment.Left; Label.BackgroundTransparency = 1
+	local SliderBar = Instance.new("Frame", Frame); SliderBar.Size = UDim2.new(1, 0, 0, 6); SliderBar.Position = UDim2.new(0, 0, 0, 24); SliderBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	Instance.new("UICorner", SliderBar).CornerRadius = UDim.new(0, 3)
+	local Fill = Instance.new("Frame", SliderBar); Fill.Size = UDim2.new((getgenv()[globalVarName] - min)/(max - min), 0, 1, 0); Fill.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+	Instance.new("UICorner", Fill).CornerRadius = UDim.new(0, 3)
+	
+	local function updateSlider(input)
+		local pct = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
+		local val = math.floor(min + (max - min) * pct)
+		getgenv()[globalVarName] = val
+		Label.Text = text .. ": " .. tostring(val)
+		Fill.Size = UDim2.new(pct, 0, 1, 0)
+	end
+	SliderBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then updateSlider(input) end
+	end)
+end
+
+local function createActionButton(parent, text, color, clickFunc)
+	local Btn = Instance.new("TextButton", parent)
+	Btn.Size = UDim2.new(0.92, 0, 0, 36); Btn.BackgroundColor3 = color; Btn.Text = text; Btn.TextColor3 = Color3.fromRGB(255, 255, 255); Btn.Font = Enum.Font.GothamBold; Btn.TextSize = 11
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-	return Btn
-end
-
-local function createHeaderLabel(parent, title)
-	local Label = Instance.new("TextLabel")
-	Label.Size = UDim2.new(0.9, 0, 0, 20)
-	Label.BackgroundTransparency = 1
-	Label.Text = "- " .. title
-	Label.TextColor3 = Color3.fromRGB(0, 255, 150)
-	Label.Font = Enum.Font.GothamBold
-	Label.TextSize = 12
-	Label.TextXAlignment = Enum.TextXAlignment.Left
-	Label.Parent = parent
-	return Label
+	Btn.MouseButton1Click:Connect(clickFunc)
 end
 
 -- ==========================================
--- PAGE 1: WEAPON MODS & FIRE MONITOR
+-- XÂY DỰNG NÚT BẤM CHO TẤT CẢ CÁC TRANG (TỪ 1 -> 9)
 -- ==========================================
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(0.9, 0, 0, 30)
-StatusLabel.Position = UDim2.new(0.05, 0, 0, 5)
-StatusLabel.BackgroundColor3 = Color3.fromRGB(45, 20, 20)
-StatusLabel.Text = "STATUS: SHOOT GUN TO SCAN REMOTE..."
-StatusLabel.TextColor3 = Color3.fromRGB(255, 130, 130)
-StatusLabel.Font = Enum.Font.GothamSemibold
-StatusLabel.TextSize = 10
-StatusLabel.Parent = Page1
-Instance.new("UICorner", StatusLabel).CornerRadius = UDim.new(0, 6)
-_G.NexusMultiStatusLabel = StatusLabel
 
-createToggle(Page1, "Rapid Fire Mod", 40, "rapidFireEnabled")
+-- PAGE 1: WEAPON MODS
+local StatusLabel = Instance.new("TextLabel", Page1); StatusLabel.Size = UDim2.new(0.92, 0, 0, 28); StatusLabel.BackgroundColor3 = Color3.fromRGB(45, 20, 20); StatusLabel.Text = "SHOOT GUN TO SCAN REMOTE..."; StatusLabel.TextColor3 = Color3.fromRGB(255, 130, 130); StatusLabel.Font = Enum.Font.GothamSemibold; StatusLabel.TextSize = 10
+Instance.new("UICorner", StatusLabel).CornerRadius = UDim.new(0, 6); _G.NexusMultiStatusLabel = StatusLabel
+createToggle(Page1, "Rapid Fire Mod", "rapidFireEnabled")
+local RFBox = createTextBox(Page1, "Multiplier:", "2")
+RFBox:GetPropertyChangedSignal("Text"):Connect(function() getgenv().rapidFire = tonumber(RFBox.Text) or 2 end)
 
-local RFInputBox = createTextBox(Page1, "Rapid Fire Multiplier:", "Default: 2", 80)
-RFInputBox.Text = "2"
-RFInputBox:GetPropertyChangedSignal("Text"):Connect(function()
-	local val = tonumber(RFInputBox.Text)
-	if val and val >= 1 then getgenv().rapidFire = math.floor(val) end
+-- PAGE 2: AIMBOT CONFIG
+createToggle(Page2, "Enable Aimbot Camera", "AimbotEnabled")
+createToggle(Page2, "Enable Silent Aim (Raycast)", "SilentAimEnabled")
+createToggle(Page2, "Show FOV Circle", "ShowFOV")
+createToggle(Page2, "Team Check", "TeamCheck")
+createToggle(Page2, "Wall Check (Basic)", "WallCheck")
+createToggle(Page2, "Wall Check V2 (Limbs)", "WallCheckV2")
+createToggle(Page2, "Silent Aim Box Detect", "SilentAimBoxDetect")
+createSlider(Page2, "Aimbot FOV Size", 30, 500, "AimbotFOV")
+
+-- PAGE 3: HITBOX EXPAN
+createToggle(Page3, "Enable Hitbox Expander", "HitboxEnabled")
+local HBSizeBox = createTextBox(Page3, "Hitbox Size:", "2")
+HBSizeBox:GetPropertyChangedSignal("Text"):Connect(function() getgenv().hitboxSize = tonumber(HBSizeBox.Text) or 2 end)
+local HBTeamBox = createTextBox(Page3, "Target Team:", "All / SCP / Guard / MTF")
+HBTeamBox:GetPropertyChangedSignal("Text"):Connect(function() getgenv().HitboxTargetTeam = HBTeamBox.Text ~= "" and HBTeamBox.Text or "All" end)
+
+-- PAGE 4: ESP & MOVEMENT
+createToggle(Page4, "Enable Players ESP Chams", "EspEnabled")
+createToggle(Page4, "Show Player Info (Distance)", "ShowInfo")
+createToggle(Page4, "Show SCP Designations", "ShowSCPNum")
+createToggle(Page4, "Enable Doors/Gates Chams", "DoorGateEspEnabled")
+createToggle(Page4, "Enable TP Walk", "TpWalkEnabled")
+createSlider(Page4, "TP Walk Speed", 16, 150, "WalkSpeed")
+
+-- PAGE 5: CBRING V2 (SCP & PLAYER LOCKS)
+local PlrInput = createTextBox(Page5, "Player Name:", "Enter user...")
+PlrInput:GetPropertyChangedSignal("Text"):Connect(function() getgenv().TargetPlayerInput = PlrInput.Text end)
+createDelayToggle(Page5, "Lock Player Location", "LockPlayerEnabled", "PlayerLockReady")
+createActionButton(Page5, "Instant CBring Target", Color3.fromRGB(150, 0, 200), function()
+	local p = getSmartTargetPlayer(getgenv().TargetPlayerInput)
+	if p and p.Character then cbringCharacter(p.Character) end
 end)
 
-local UI_BulletFormula = Instance.new("TextLabel")
-UI_BulletFormula.Size = UDim2.new(0.9, 0, 0, 28)
-UI_BulletFormula.Position = UDim2.new(0.05, 0, 0, 120)
-UI_BulletFormula.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-UI_BulletFormula.Text = " Total: 0 Bullet(s) / 0 Seconds"
-UI_BulletFormula.TextColor3 = Color3.fromRGB(0, 255, 150)
-UI_BulletFormula.Font = Enum.Font.GothamBold
-UI_BulletFormula.TextSize = 11
-UI_BulletFormula.TextXAlignment = Enum.TextXAlignment.Left
-UI_BulletFormula.Parent = Page1
-Instance.new("UICorner", UI_BulletFormula).CornerRadius = UDim.new(0, 6)
-Instance.new("UIPadding", UI_BulletFormula).PaddingLeft = UDim.new(0, 8)
+local TeamInput = createTextBox(Page5, "Team Target:", "Enemies / Guards / Class-D")
+TeamInput:GetPropertyChangedSignal("Text"):Connect(function() getgenv().TargetTeamSelection = TeamInput.Text ~= "" and TeamInput.Text or "Enemies" end)
+createDelayToggle(Page5, "Lock Entire Team Location", "LockTeamEnabled", "TeamLockReady")
 
-local Scroll = Instance.new("ScrollingFrame")
-Scroll.Size = UDim2.new(1, 0, 1, -195)
-Scroll.Position = UDim2.new(0, 0, 0, 155)
-Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarThickness = 5
-Scroll.Parent = Page1
-local L1 = Instance.new("UIListLayout", Scroll)
-L1.Padding = UDim.new(0, 6)
-Instance.new("UIPadding", Scroll).PaddingLeft = UDim.new(0, 12)
+local ScpInput = createTextBox(Page5, "SCP Number:", "e.g. 173 / 096 / 106")
+ScpInput:GetPropertyChangedSignal("Text"):Connect(function() getgenv().TargetSCPNumber = ScpInput.Text end)
+createDelayToggle(Page5, "Lock SCP Object Location", "LockSCPEnabled", "ScpLockReady")
 
-local TargetStats = {"Firerate", "Spread", "MaxRange", "ProjectileSpeed", "ProjectileLifetime"}
-local GunBoxes = {}
-for _, stat in ipairs(TargetStats) do GunBoxes[stat] = createTextBox(Scroll, stat, "Enter value...", 0) end
-Scroll.CanvasSize = UDim2.new(0, 0, 0, 210)
-GunBoxes["Firerate"].Text = "0.04"
+-- PAGE 6: PLAYER STATUS
+local RoleLabel = Instance.new("TextLabel", Page6); RoleLabel.Size = UDim2.new(0.92, 0, 0, 35); RoleLabel.BackgroundColor3 = Color3.fromRGB(30,30,30); RoleLabel.Text = "Your Team Role: Scanning..."; RoleLabel.TextColor3 = Color3.fromRGB(255,255,255); RoleLabel.Font = Enum.Font.GothamBold; RoleLabel.TextSize = 12
+Instance.new("UICorner", RoleLabel).CornerRadius = UDim.new(0,6)
+task.spawn(function()
+	while task.wait(1) do RoleLabel.Text = "Your Team Role: " .. string.upper(getPlayerRole(LocalPlayer)) end
+end)
 
-local ModGunBtn = Instance.new("TextButton")
-ModGunBtn.Size = UDim2.new(0.9, 0, 0, 30)
-ModGunBtn.Position = UDim2.new(0.05, 0, 1, -35)
-ModGunBtn.BackgroundColor3 = Color3.fromRGB(220, 30, 30)
-ModGunBtn.Text = "MODIFY GUN STATS"
-ModGunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ModGunBtn.Font = Enum.Font.GothamBold
-ModGunBtn.TextSize = 11
-ModGunBtn.Parent = Page1
-Instance.new("UICorner", ModGunBtn).CornerRadius = UDim.new(0, 6)
+-- PAGE 7: AUTO DOORS & GATES
+createToggle(Page7, "Auto Intersect Nearest (45m)", "AutoFireCDNearest")
+createToggle(Page7, "Auto Spam Selected Door", "AutoFireCDChosen")
+createToggle(Page7, "Auto Spam All Map Doors", "AutoFireCDAll")
+createActionButton(Page7, "Select Nearest Object Target", Color3.fromRGB(0, 160, 100), function()
+	selectedObject = getNearestDoorOrGate()
+	if selectedObject then highlightObject(selectedObject) end
+end)
 
--- KHỞI TẠO NÚT BẤM CHO PAGE 8 (ĐÃ CẬP NHẬT TÊN HIỂN THỊ VÀ BIẾN ĐỒNG BỘ THÀNH SPAM 173DETECT)
-local L8 = Instance.new("UIListLayout", Page8)
-L8.Padding = UDim.new(0, 6)
-Instance.new("UIPadding", Page8).PaddingLeft = UDim.new(0, 12)
+-- PAGE 8: REMOTES CONTROL
+createToggle(Page8, "Block 096 LoS Report", "Block096LoS")
+createToggle(Page8, "Block 096 Trigger", "Block096Trigger")
+createToggle(Page8, "Spam 173Detect (0.5s)", "Spam173Detect")
 
-createToggle(Page8, "Block 096 LoS Report", 0, "Block096LoS")
-createToggle(Page8, "Block 096 Trigger", 0, "Block096Trigger")
-createToggle(Page8, "Spam 173Detect (0.5s)", 0, "Spam173Detect") -- Đã sửa: Liên kết trực tiếp biến Spam173Detect
+-- PAGE 9: CREDITS HUB
+local Cr1 = Instance.new("TextLabel", Page9); Cr1.Size = UDim2.new(0.92, 0, 0, 40); Cr1.BackgroundTransparency = 1; Cr1.Text = "NEXUS MULTI-TAB ENGINE v7.0"; Cr1.TextColor3 = Color3.fromRGB(0, 255, 150); Cr1.Font = Enum.Font.GothamBold; Cr1.TextSize = 13
+local Cr2 = Instance.new("TextLabel", Page9); Cr2.Size = UDim2.new(0.92, 0, 0, 60); Cr2.BackgroundTransparency = 1; Cr2.Text = "Developed by mqxq11\nOptimized for PC & Mobile Hardware Integration."; Cr2.TextColor3 = Color3.fromRGB(200, 200, 200); Cr2.Font = Enum.Font.GothamSemibold; Cr2.TextSize = 11

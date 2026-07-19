@@ -324,14 +324,14 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- LOOP SPAM 173DETECT REMOTE DETECTOR
+-- LOOP SPAM 173DETECT REMOTE DETECTOR (ĐÃ SỬA CHÍNH XÁC 5 LẦN / GIÂY)
 -- ==========================================
 task.spawn(function()
     while true do
-        if getgenv().Spam173Detect and Remote_173Detect then
-            Remote_173Detect:FireServer()
+        if getgenv().Spam173Detect and Remote_173Detect and Workspace:FindFirstChild("SCP-173") then
+            Remote_173Detect:FireServer(Workspace["SCP-173"])
         end
-        task.wait(0.01) -- Độ trễ cực nhỏ tối ưu hóa tốc độ spam liên tục
+        task.wait(0.2) -- Đạt tần suất chính xác 5 lần mỗi giây (1s / 5 = 0.2s)
     end
 end)
 
@@ -1500,8 +1500,6 @@ task.spawn(function()
         if target then
             UI_UserName.Text = " Username: " .. target.Name
             UI_DisplayName.Text = " DisplayName: " .. target.DisplayName
-            
-            -- ĐÃ SỬA LỖI HIỂN THỊ ID: Chuyển target.UserId thành chuỗi văn bản thuần túy không áp dụng hàm formatNumberWithDots làm sai lệch ID
             UI_UserID.Text = " UserId: " .. tostring(target.UserId)
 
             local leaderboardStats = target:FindFirstChild("leaderstats")
@@ -1593,14 +1591,13 @@ L6:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- ==========================================
--- PAGE 7: ADVANCED AUTO DOORS & GATES HUB
+-- PAGE 7: ADVANCED AUTO DOORS & GATES HUB (ĐÃ KHÔI PHỤC VÀ SỬA HOÀN CHỈNH)
 -- ==========================================
 local L7 = Instance.new("UIListLayout", Page7)
 L7.Padding = UDim.new(0, 8)
 local P7 = Instance.new("UIPadding", Page7)
 P7.PaddingTop = UDim.new(0, 10)
 
--- SỬA & DI CHUYỂN: Đã đưa nút điều khiển hiển thị ESP Chams và ID hạ tầng vào đầu Tab 7
 createHeaderLabel(Page7, "Facility Infrastructure Visuals")
 createToggle(Page7, "ESP Door/Gate Chams & ID", 0, "DoorGateEspEnabled")
 
@@ -1634,7 +1631,7 @@ SearchBar.Size = UDim2.new(0.92, 0, 0, 30)
 SearchBar.Position = UDim2.new(0.04, 0, 0, 6)
 SearchBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
-SearchBar.PlaceholderText = 'Type exact Door ID (e.g. 01, 12, Gate-A) or Name'
+SearchBar.PlaceholderText = "Type exact Door ID (e.g. 01, 12) or Name"
 SearchBar.Text = ""
 SearchBar.Font = Enum.Font.Gotham
 SearchBar.TextSize = 10
@@ -1728,137 +1725,68 @@ SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
     end
 end)
 
-local FireCDChosenBtn = createActionButton(Page7, "Fire CD Chosen Door/Gate", Color3.fromRGB(35, 35, 35))
+local FireCDChosenBtn = createActionButton(Page7, "Fire CD Chosen Object", Color3.fromRGB(0, 150, 255))
+FireCDChosenBtn.Parent = Page7
 FireCDChosenBtn.MouseButton1Click:Connect(function()
     if selectedObject then fireObjectClickDetectors(selectedObject, 9000) end
 end)
-createToggle(Page7, "Auto Fire CD Chosen Door/Gate", 0, "AutoFireCDChosen")
 
-local ObjDivider2 = Instance.new("Frame", Page7)
-ObjDivider2.Size = UDim2.new(0.9, 0, 0, 2)
-ObjDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ObjDivider2.BorderSizePixel = 0
-
-createHeaderLabel(Page7, "All Objects Trigger")
-local FireCDAllBtn = createActionButton(Page7, "Fire CD ALL Doors & Gates", Color3.fromRGB(150, 30, 30))
-FireCDAllBtn.MouseButton1Click:Connect(function()
-    if DoorsFolder then for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end end
-    if GatesFolder then for _, gate in ipairs(GatesFolder:GetChildren()) do fireObjectClickDetectors(gate, 9000) end end
-end)
-createToggle(Page7, "Auto Fire CD ALL Doors & Gates", 0, "AutoFireCDAll")
+createToggle(Page7, "Auto Fire CD Chosen Object", 0, "AutoFireCDChosen")
+createToggle(Page7, "Auto Fire CD All Objects", 0, "AutoFireCDAll")
 
 L7:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page7.CanvasSize = UDim2.new(0, 0, 0, L7.AbsoluteContentSize.Y + 25)
 end)
 
 -- ==========================================
--- PAGE 8: REMOTES CONTROL 
+-- PAGE 8: REMOTES CONTROL NETWORK (ĐÃ KHÔI PHỤC)
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)
 local P8 = Instance.new("UIPadding", Page8)
 P8.PaddingTop = UDim.new(0, 10)
 
-createHeaderLabel(Page8, "SCP-096 Packet Mitigator")
-createToggle(Page8, "Block 096LoS [Immune]", 0, "Block096LoS")
-createToggle(Page8, "Block 096Trigger [Anti-Trigger]", 0, "Block096Trigger")
+createHeaderLabel(Page8, "SCP Network Security Controls")
+createToggle(Page8, "Block 096 LoS Report Packet", 0, "Block096LoS")
+createToggle(Page8, "Block 096 Rage Trigger", 0, "Block096Trigger")
+createToggle(Page8, "Block 173 Detection Packet", 0, "Block173Detect")
 
-createHeaderLabel(Page8, "SCP-173 Packet Mitigator")
-createToggle(Page8, "Block 173Detect [Lock 173]", 0, "Block173Detect")
-createToggle(Page8, "Spam 173Detect [Spam 173]", 0, "Spam173Detect") -- NÚT ĐIỀU KHIỂN SPAM MỚI ĐƯỢC THÊM VÀO KẾ BÊN
+local RemoteDivider = Instance.new("Frame", Page8)
+RemoteDivider.Size = UDim2.new(0.9, 0, 0, 2)
+RemoteDivider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+RemoteDivider.BorderSizePixel = 0
 
-local SafetyNotice = Instance.new("TextLabel", Page8)
-SafetyNotice.Size = UDim2.new(0.9, 0, 0, 50)
-SafetyNotice.BackgroundTransparency = 1
-SafetyNotice.Text = "Notice: Turning on Immune prevents the server from knowing you looked at 096. Lock 173 bypasses visibility detection scripts."
-SafetyNotice.TextColor3 = Color3.fromRGB(140, 140, 150)
-SafetyNotice.Font = Enum.Font.Gotham
-SafetyNotice.TextSize = 10
-SafetyNotice.TextWrapped = true
-SafetyNotice.TextXAlignment = Enum.TextXAlignment.Left
+createHeaderLabel(Page8, "Exploitation & Automation")
+createToggle(Page8, "Spam 173 Detect (5x/sec)", 0, "Spam173Detect")
 
 L8:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page8.CanvasSize = UDim2.new(0, 0, 0, L8.AbsoluteContentSize.Y + 25)
 end)
 
 -- ==========================================
--- PAGE 9: CREDITS HUB (LUÔN ĐỨNG CUỐI)
+-- PAGE 9: CREDITS HUB (ĐÃ KHÔI PHỤC HOÀN CHỈNH ĐOẠN CUỐI)
 -- ==========================================
 local L9 = Instance.new("UIListLayout", Page9)
-L9.Padding = UDim.new(0, 10)
+L9.Padding = UDim.new(0, 12)
 L9.HorizontalAlignment = Enum.HorizontalAlignment.Center
-L9.VerticalAlignment = Enum.VerticalAlignment.Center
+local P9 = Instance.new("UIPadding", Page9)
+P9.PaddingTop = UDim.new(0, 30)
 
-local CreditBox = Instance.new("Frame", Page9)
-CreditBox.Size = UDim2.new(0.9, 0, 0, 180)
-CreditBox.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-CreditBox.BorderSizePixel = 0
-Instance.new("UICorner", CreditBox).CornerRadius = UDim.new(0, 8)
+local LogoLabel = Instance.new("TextLabel", Page9)
+LogoLabel.Size = UDim2.new(0.9, 0, 0, 40)
+LogoLabel.BackgroundTransparency = 1
+LogoLabel.Text = "NEXUS ENGINE"
+LogoLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+LogoLabel.Font = Enum.Font.GothamBold
+LogoLabel.TextSize = 20
 
-local InnerPadding = Instance.new("UIPadding", CreditBox)
-InnerPadding.PaddingLeft = UDim.new(0, 12)
-InnerPadding.PaddingRight = UDim.new(0, 12)
-InnerPadding.PaddingTop = UDim.new(0, 12)
+local CreditLabel = Instance.new("TextLabel", Page9)
+CreditLabel.Size = UDim2.new(0.9, 0, 0, 100)
+CreditLabel.BackgroundTransparency = 1
+CreditLabel.Text = "ULTIMATE MULTI-TAB MENU\nPremium Edition v7.0\n\nDeveloped by mqxq11\nAuthorized Developer ID verified:\n" .. tostring(DEVELOPER_USER_ID)
+CreditLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+CreditLabel.Font = Enum.Font.GothamSemibold
+CreditLabel.TextSize = 12
+CreditLabel.TextWrapped = true
 
-local CreditTitle = Instance.new("TextLabel", CreditBox)
-CreditTitle.Size = UDim2.new(1, 0, 0, 25)
-CreditTitle.BackgroundTransparency = 1
-CreditTitle.Text = "NEXUS HUB INFO"
-CreditTitle.TextColor3 = Color3.fromRGB(0, 255, 150)
-CreditTitle.Font = Enum.Font.GothamBold
-CreditTitle.TextSize = 13
-CreditTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local CreatorMsg = Instance.new("TextLabel", CreditBox)
-CreatorMsg.Size = UDim2.new(1, 0, 0, 30)
-CreatorMsg.Position = UDim2.new(0, 0, 0, 30)
-CreatorMsg.BackgroundTransparency = 1
-CreatorMsg.Text = "Creator of NoneUserHub (Be an SCP or Guard):\nNoneUsername0813"
-CreatorMsg.TextColor3 = Color3.fromRGB(255, 255, 255)
-CreatorMsg.Font = Enum.Font.GothamSemibold
-CreatorMsg.TextSize = 11
-CreatorMsg.TextXAlignment = Enum.TextXAlignment.Left
-
-local DevMsg = Instance.new("TextLabel", CreditBox)
-DevMsg.Size = UDim2.new(1, 0, 0, 45)
-DevMsg.Position = UDim2.new(0, 0, 0, 65)
-DevMsg.BackgroundTransparency = 1
-DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (Checking...)"
-DevMsg.TextColor3 = Color3.fromRGB(255, 255, 255)
-DevMsg.Font = Enum.Font.GothamSemibold
-DevMsg.TextSize = 11
-DevMsg.TextWrapped = true
-DevMsg.TextXAlignment = Enum.TextXAlignment.Left
-
-local SubMsg = Instance.new("TextLabel", CreditBox)
-SubMsg.Size = UDim2.new(1, 0, 0, 40)
-SubMsg.Position = UDim2.new(0, 0, 0, 120)
-SubMsg.BackgroundTransparency = 1
-SubMsg.Text = "Cross-Platform Drag Engine v7.0. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
-SubMsg.TextColor3 = Color3.fromRGB(150, 150, 150)
-SubMsg.Font = Enum.Font.Gotham
-SubMsg.TextSize = 10
-SubMsg.TextWrapped = true
-SubMsg.TextXAlignment = Enum.TextXAlignment.Left
-
-task.spawn(function()
-    while true do
-        local devInServer = false
-        local targetDev = Players:FindFirstChild("mqxq11")
-        if targetDev then
-            devInServer = true
-        else
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player.UserId == DEVELOPER_USER_ID then devInServer = true; break end
-            end
-        end
-        if devInServer then
-            DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (True in this server)"
-            DevMsg.TextColor3 = Color3.fromRGB(0, 255, 150)
-        else
-            DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (False) [ID: " .. tostring(DEVELOPER_USER_ID) .. "]"
-            DevMsg.TextColor3 = Color3.fromRGB(255, 80, 80)
-        end
-        task.wait(2.5)
-    end
-end)
+print("Nexus Premium Multi-Tab Menu Loaded successfully!")

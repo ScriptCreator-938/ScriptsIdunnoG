@@ -59,12 +59,13 @@ getgenv().ShowSCPNum = false
 getgenv().TpWalkEnabled = false
 getgenv().WalkSpeed = 25
 
--- MỚI: ESP DOORS & GATES CHAMS CONFIG
+-- MỚI: ESP DOORS & GATES CHAMS CONFIG (ĐÃ DI CHUYỂN LOGIC TAB)
 getgenv().DoorGateEspEnabled = false
 
--- MỚI: REMOTES CONTROL CONFIG
+-- MỚI: REMOTES CONTROL CONFIG (THÊM CHẶN 173)
 getgenv().Block096LoS = false
 getgenv().Block096Trigger = false
+getgenv().Block173Detect = false
 
 -- CBRING V2 & SCP LOCK CONFIGURATION
 getgenv().TargetPlayerInput = ""
@@ -317,13 +318,16 @@ if not getgenv()._origFire then
         local method = getnamecallmethod()
         local args = {...}
 
-        -- Chặn Gói Tin SCP-096 Từ Module Decompiled Đã Được Thêm Tính Năng On/Off
+        -- Chặn Gói Tin SCP-096 & SCP-173 Từ Module Decompiled Đã Được Thêm Tính Năng On/Off
         if method == "FireServer" and not checkcaller() then
             if getgenv().Block096LoS and Remote_096LoSReport and self == Remote_096LoSReport then
                 return nil -- Chặn gửi gói tin nhìn mặt SCP-096 [Immune]
             end
             if getgenv().Block096Trigger and Remote_096Trigger and self == Remote_096Trigger then
                 return nil -- Chặn gửi gói tin kích hoạt SCP-096 [Anti-Trigger]
+            end
+            if getgenv().Block173Detect and Remote_173Detect and self == Remote_173Detect then
+                return nil -- Chặn gửi gói tin kích hoạt phát hiện SCP-173 [Lock 173]
             end
         end
 
@@ -563,7 +567,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. HỆ THỐNG MỚI: ESP CHAMS & NUMBER CHO DOORS & GATES
+    -- 2. HỆ THỐNG MỚI: ESP CHAMS & ĐỊNH DANH (SỬA LỖI HIỂN THỊ ID & KHOẢNG CÁCH THỰC)
     local function processFolderESP(folder, color, labelType)
         if not folder then return end
         local children = folder:GetChildren()
@@ -597,15 +601,20 @@ RunService.RenderStepped:Connect(function()
                         tl.Size = UDim2.new(1, 0, 1, 0)
                         tl.BackgroundTransparency = 1
                         tl.Font = Enum.Font.GothamBold
-                        tl.TextSize = 13
+                        tl.TextSize = 11
                         tl.TextStrokeTransparency = 0
                         tl.Parent = bb
                         bb.Parent = targetPart
                     end
                     local tl = bb:FindFirstChild("TextLabel")
                     if tl then
+                        local distance = 0
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - targetPart.Position).Magnitude)
+                        end
                         tl.TextColor3 = color
-                        tl.Text = "[" .. labelType .. "]\n" .. tostring(idx)
+                        -- Sửa lỗi ID: Hiển thị định dạng rõ ràng bao gồm Loại [Index] và Khoảng cách thực tế
+                        tl.Text = string.format("[%s ID: %d]\n(%dm)", labelType, idx, distance)
                         bb.Enabled = true
                     end
                 end
@@ -894,8 +903,8 @@ local Page4 = createPage("VisualsMovement", true)
 local Page5 = createPage("CbringV2", true)
 local Page6 = createPage("PlayerStatus", true)
 local Page7 = createPage("AutoDoors", true)
-local Page8 = createPage("RemotesControl", true) -- Mới: Trang Remotes Control
-local Page9 = createPage("Credit", false)        -- Đẩy Credit Hub xuống cuối cùng
+local Page8 = createPage("RemotesControl", true)
+local Page9 = createPage("Credit", false)
 
 local PageTitles = {
     "P1: WEAPON MODS", 
@@ -1285,9 +1294,7 @@ createToggle(Page4, "ESP Chams (Wallhack)", 0, "EspEnabled")
 createToggle(Page4, "Display Name & Distance", 0, "ShowInfo")
 createToggle(Page4, "Display SCP Designations", 0, "ShowSCPNum")
 
--- SỬA & THÊM: Nút On Off ESP Chams & Number Door/Gate vào Tab Visuals
-createHeaderLabel(Page4, "Facility Infrastructure Visuals")
-createToggle(Page4, "ESP Door/Gate Chams & ID", 0, "DoorGateEspEnabled")
+-- [[ ĐÃ DI CHUYỂN NÚT ESP DOOR/GATE RA KHỎI ĐÂY ]]
 
 local Divider = Instance.new("Frame", Page4)
 Divider.Size = UDim2.new(0.9, 0, 0, 2)
@@ -1563,12 +1570,21 @@ L6:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- ==========================================
--- PAGE 7: ADVANCED AUTO DOORS & GATES HUB
+-- PAGE 7: ADVANCED AUTO DOORS & GATES HUB (ĐÃ THAY ĐỔI)
 -- ==========================================
 local L7 = Instance.new("UIListLayout", Page7)
 L7.Padding = UDim.new(0, 8)
 local P7 = Instance.new("UIPadding", Page7)
 P7.PaddingTop = UDim.new(0, 10)
+
+-- MỚI: Nút bật tắt ESP Chams Door/Gate đã được thêm thành công vào đây
+createHeaderLabel(Page7, "Infrastructure Visuals Overlay")
+createToggle(Page7, "ESP Door/Gate Chams & ID", 0, "DoorGateEspEnabled")
+
+local VisualDivider = Instance.new("Frame", Page7)
+VisualDivider.Size = UDim2.new(0.9, 0, 0, 2)
+VisualDivider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+VisualDivider.BorderSizePixel = 0
 
 createHeaderLabel(Page7, "Nearest Object Trigger")
 local FireCDNearestBtn = createActionButton(Page7, "Fire CD Nearest Door/Gate", Color3.fromRGB(35, 35, 35))
@@ -1719,21 +1735,22 @@ L7:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- ==========================================
--- THÊM MỚI - PAGE 8: REMOTES CONTROL 
+-- PAGE 8: REMOTES CONTROL (THÊM NÚT BLOCK 173 DETECT)
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)
 local P8 = Instance.new("UIPadding", Page8)
 P8.PaddingTop = UDim.new(0, 10)
 
-createHeaderLabel(Page8, "SCP-096 Packet Mitigator")
+createHeaderLabel(Page8, "SCP Packet Mitigator Control")
 createToggle(Page8, "Block 096LoS [Immune]", 0, "Block096LoS")
 createToggle(Page8, "Block 096Trigger [Anti-Trigger]", 0, "Block096Trigger")
+createToggle(Page8, "Block 173Detect [Lock 173]", 0, "Block173Detect") -- THÊM MỚI THEO YÊU CẦU
 
 local SafetyNotice = Instance.new("TextLabel", Page8)
-SafetyNotice.Size = UDim2.new(0.9, 0, 0, 50)
+SafetyNotice.Size = UDim2.new(0.9, 0, 0, 60)
 SafetyNotice.BackgroundTransparency = 1
-SafetyNotice.Text = "Notice: Turning on Immune prevents the server from knowing you looked at 096. Anti-Trigger bypasses rage trigger packets completely."
+SafetyNotice.Text = "Notice: Turn on Lock 173 to freeze SCP-173 movement completely when looking away. LoS Immune avoids trigger rage for SCP-096."
 SafetyNotice.TextColor3 = Color3.fromRGB(140, 140, 150)
 SafetyNotice.Font = Enum.Font.Gotham
 SafetyNotice.TextSize = 10

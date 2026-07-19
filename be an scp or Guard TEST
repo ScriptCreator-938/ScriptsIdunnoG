@@ -65,7 +65,7 @@ getgenv().DoorGateEspEnabled = false
 -- MỚI: REMOTES CONTROL CONFIG
 getgenv().Block096LoS = false
 getgenv().Block096Trigger = false
-getgenv().Spam173Detect = false -- Trạng thái On/Off chặn SCP-173
+getgenv().Spam173Detect = false -- Đã sửa: Đồng bộ trạng thái On/Off Spam SCP-173
 
 -- CBRING V2 & SCP LOCK CONFIGURATION
 getgenv().TargetPlayerInput = ""
@@ -133,7 +133,7 @@ UserInputService.TouchMoved:Connect(function(touch, gameProcessed)
 	end
 end)
 
-	task.spawn(function()
+task.spawn(function()
 	while true do
 		if IsSwipeBreaking and (os.clock() - LastSwipeBreakTime) > 0.4 then
 			IsSwipeBreaking = false
@@ -220,7 +220,6 @@ local function getDynamicFOVCenter()
 	return Vector2.new(screenSize.X / 2, screenSize.Y / 2)
 end
 
--- Hàm lấy ID thực tế của Cửa/Gate dựa trên các thuộc tính cấu trúc ẩn của game
 local function getActualDoorId(obj)
 	if not obj then return "Unknown" end
 	local idValue = obj:FindFirstChild("ID") or obj:FindFirstChild("DoorID") or obj:FindFirstChild("GateID")
@@ -341,6 +340,7 @@ if not getgenv()._origFire then
 			if getgenv().Block096Trigger and Remote_096Trigger and self == Remote_096Trigger then
 				return nil
 			end
+			-- ĐÃ XÓA logic chặn 173Detect cũ tại đây để không chặn gói tin khi Spam tự động gửi đi.
 		end
 
 		if method == "Raycast" and getgenv().SilentAimEnabled and not checkcaller() then
@@ -577,13 +577,12 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 
-	-- 2. HỆ THỐNG ESP CHAMS & ID CHO DOORS & GATES (QUÉT ID GẮN TRÊN CỬA)
+	-- 2. HỆ THỐNG ESP CHAMS & ID CHO DOORS & GATES
 	local function processFolderESP(folder, color, labelType)
 		if not folder then return end
 		local children = folder:GetChildren()
 		for idx, obj in ipairs(children) do
 			if getgenv().DoorGateEspEnabled then
-				-- Highlight Cham
 				local hl = obj:FindFirstChild("DoorGateCham")
 				if not hl then
 					hl = Instance.new("Highlight")
@@ -597,7 +596,6 @@ RunService.RenderStepped:Connect(function()
 				hl.OutlineColor = Color3.fromRGB(255, 255, 255)
 				hl.Enabled = true
 
-				-- Tìm phần BasePart trung tâm để gắn BillboardGui
 				local targetPart = obj:FindFirstChild("Hitbox") or obj:FindFirstChildOfClass("BasePart") or obj:FindFirstChild("Main")
 				if targetPart then
 					local bb = targetPart:FindFirstChild("DoorGateTag")
@@ -625,7 +623,6 @@ RunService.RenderStepped:Connect(function()
 					end
 				end
 			else
-				-- Tắt ESP
 				local hl = obj:FindFirstChild("DoorGateCham")
 				if hl then hl.Enabled = false end
 				for _, desc in ipairs(obj:GetDescendants()) do
@@ -798,14 +795,15 @@ task.spawn(function()
 	end
 end)
 
+-- ====================================================================
+-- VỊ TRÍ 2: VÒNG LẶP TỰ ĐỘNG SPAM 173DETECT MỖI 0.5 GIÂY (CHÈN TRƯỚC GIAO DIỆN)
+-- ====================================================================
 task.spawn(function()
 	while true do
-		-- Kiểm tra nếu trạng thái cấu hình đang bật (On)
 		if getgenv().Spam173Detect and Remote_173Detect then
-			-- Gọi trực tiếp Remote để kích hoạt gửi dữ liệu lên Server
 			Remote_173Detect:FireServer()
 		end
-		task.wait(0.5) -- Giãn cách chính xác 0.5 giây cho mỗi lần spam
+		task.wait(0.5) -- Giãn cách chính xác 0.5 giây
 	end
 end)
 
@@ -912,7 +910,7 @@ local function createPage(name, isScrollable)
 	return p
 end
 
--- TRANG SẮP XẾP THỨ TỰ (CREDIT HUB LUÔN ĐỨNG CUỐI)
+-- TRANG SẮP XẾP THỨ TỰ
 local Page1 = createPage("WeaponMods", false)
 local Page2 = createPage("Aimbot", true)
 local Page3 = createPage("Hitbox", false)
@@ -1179,3 +1177,12 @@ ModGunBtn.Font = Enum.Font.GothamBold
 ModGunBtn.TextSize = 11
 ModGunBtn.Parent = Page1
 Instance.new("UICorner", ModGunBtn).CornerRadius = UDim.new(0, 6)
+
+-- KHỞI TẠO NÚT BẤM CHO PAGE 8 (ĐÃ CẬP NHẬT TÊN HIỂN THỊ VÀ BIẾN ĐỒNG BỘ THÀNH SPAM 173DETECT)
+local L8 = Instance.new("UIListLayout", Page8)
+L8.Padding = UDim.new(0, 6)
+Instance.new("UIPadding", Page8).PaddingLeft = UDim.new(0, 12)
+
+createToggle(Page8, "Block 096 LoS Report", 0, "Block096LoS")
+createToggle(Page8, "Block 096 Trigger", 0, "Block096Trigger")
+createToggle(Page8, "Spam 173Detect (0.5s)", 0, "Spam173Detect") -- Đã sửa: Liên kết trực tiếp biến Spam173Detect

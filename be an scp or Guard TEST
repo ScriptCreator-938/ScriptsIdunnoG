@@ -220,6 +220,21 @@ local function getDynamicFOVCenter()
     return Vector2.new(screenSize.X / 2, screenSize.Y / 2)
 end
 
+-- Hàm lấy ID thực tế của Cửa/Gate dựa trên các thuộc tính cấu trúc ẩn của game
+local function getActualDoorId(obj)
+    if not obj then return "Unknown" end
+    local idValue = obj:FindFirstChild("ID") or obj:FindFirstChild("DoorID") or obj:FindFirstChild("GateID")
+    if idValue and (idValue:IsA("StringValue") or idValue:IsA("IntValue") or idValue:IsA("NumberValue")) then
+        return tostring(idValue.Value)
+    end
+    local config = obj:FindFirstChild("Configuration") or obj:FindFirstChild("Settings")
+    if config then
+        local altId = config:FindFirstChild("ID") or config:FindFirstChild("DoorID")
+        if altId then return tostring(altId.Value) end
+    end
+    return obj.Name
+end
+
 -- ==========================================
 -- UNIVERSAL CLICK DETECTOR FIRE ENGINE
 -- ==========================================
@@ -566,7 +581,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. HỆ THỐNG ESP CHAMS & ID CHO DOORS & GATES
+    -- 2. HỆ THỐNG ESP CHAMS & ID CHO DOORS & GATES (QUÉT ID GẮN TRÊN CỬA)
     local function processFolderESP(folder, color, labelType)
         if not folder then return end
         local children = folder:GetChildren()
@@ -608,7 +623,8 @@ RunService.RenderStepped:Connect(function()
                     local tl = bb:FindFirstChild("TextLabel")
                     if tl then
                         tl.TextColor3 = color
-                        tl.Text = "[" .. labelType .. "]\n" .. tostring(idx)
+                        local actualId = getActualDoorId(obj)
+                        tl.Text = "[" .. labelType .. " ID]\n" .. actualId
                         bb.Enabled = true
                     end
                 end
@@ -1605,7 +1621,7 @@ SearchBar.Size = UDim2.new(0.92, 0, 0, 30)
 SearchBar.Position = UDim2.new(0.04, 0, 0, 6)
 SearchBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
-SearchBar.PlaceholderText = 'Type "Door[2]", "Gate[2]" or choose Door/Gate list then type Number'
+SearchBar.PlaceholderText = 'Type exact Door ID (e.g. 01, 12, Gate-A) or Name'
 SearchBar.Text = ""
 SearchBar.Font = Enum.Font.Gotham
 SearchBar.TextSize = 10
@@ -1667,40 +1683,34 @@ SelectionIndicatorBtn.Parent = Page7
 Instance.new("UICorner", SelectionIndicatorBtn).CornerRadius = UDim.new(0, 6)
 
 SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
-    local text = SearchBar.Text
+    local text = string.lower(SearchBar.Text)
     if text == "" then return end
     local foundObj = nil
     
-    if searchFilterMode == "All" then
-        local typePrefix, indexStr = string.match(text, "^([a-zA-Z]+)%[(%d+)%]$")
-        if typePrefix and indexStr then
-            local idx = tonumber(indexStr)
-            typePrefix = string.lower(typePrefix)
-            if string.find(typePrefix, "door") and DoorsFolder then
-                local allDoors = DoorsFolder:GetChildren()
-                if allDoors[idx] then foundObj = allDoors[idx] end
-            elseif string.find(typePrefix, "gate") and GatesFolder then
-                local allGates = GatesFolder:GetChildren()
-                if allGates[idx] then foundObj = allGates[idx] end
+    local function searchFolder(folder)
+        if not folder then return nil end
+        for _, obj in ipairs(folder:GetChildren()) do
+            local actualId = string.lower(getActualDoorId(obj))
+            local objName = string.lower(obj.Name)
+            if actualId == text or string.find(actualId, text) or string.find(objName, text) then
+                return obj
             end
         end
+        return nil
+    end
+
+    if searchFilterMode == "All" then
+        foundObj = searchFolder(DoorsFolder) or searchFolder(GatesFolder)
     elseif searchFilterMode == "Doors" then
-        local idx = tonumber(text)
-        if idx and DoorsFolder then
-            local allDoors = DoorsFolder:GetChildren()
-            if allDoors[idx] then foundObj = allDoors[idx] end
-        end
+        foundObj = searchFolder(DoorsFolder)
     elseif searchFilterMode == "Gates" then
-        local idx = tonumber(text)
-        if idx and GatesFolder then
-            local allGates = GatesFolder:GetChildren()
-            if allGates[idx] then foundObj = allGates[idx] end
-        end
+        foundObj = searchFolder(GatesFolder)
     end
     
     if foundObj then
         selectedObject = foundObj
-        SelectionIndicatorBtn.Text = "SELECTED TARGET: " .. string.upper(selectedObject.Name) .. " (" .. searchFilterMode .. ")"
+        local displayId = getActualDoorId(selectedObject)
+        SelectionIndicatorBtn.Text = "SELECTED TARGET ID: " .. string.upper(displayId) .. " (" .. searchFilterMode .. ")"
         highlightObject(selectedObject)
     end
 end)

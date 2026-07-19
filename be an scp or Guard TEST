@@ -1,5 +1,5 @@
 -- [[ ULTIMATE MULTI-TAB MENU - INTEGRATED PC & MOBILE DUAL DRAG ENGINE ]] --
--- Premium Edition v6.0 [CROSS-PLATFORM SMOOTH DRAG & COMPACT INTERFACE]
+-- Premium Edition v7.0 [CROSS-PLATFORM SMOOTH DRAG & COMPACT INTERFACE]
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -22,6 +22,12 @@ local RawStats = WeaponStatsModule and require(WeaponStatsModule) or {}
 local FacilityFolder = Workspace:WaitForChild("Facility", 5)
 local DoorsFolder = FacilityFolder and FacilityFolder:WaitForChild("Doors", 5)
 local GatesFolder = FacilityFolder and FacilityFolder:WaitForChild("Gates", 5)
+
+-- Decompiled Remotes Reference
+local Remote_096Trigger = ReplicatedStorage:WaitForChild("096Trigger", 5)
+local Remote_173Detect = ReplicatedStorage:WaitForChild("173Detect", 5)
+local Remote_096Triggered = ReplicatedStorage:WaitForChild("096Triggered", 5)
+local Remote_096LoSReport = ReplicatedStorage:WaitForChild("096LoSReport", 5)
 
 -- ==========================================
 -- GLOBAL SETTINGS CONFIGURATION
@@ -53,6 +59,13 @@ getgenv().ShowSCPNum = false
 getgenv().TpWalkEnabled = false
 getgenv().WalkSpeed = 25
 
+-- MỚI: ESP DOORS & GATES CHAMS CONFIG
+getgenv().DoorGateEspEnabled = false
+
+-- MỚI: REMOTES CONTROL CONFIG
+getgenv().Block096LoS = false
+getgenv().Block096Trigger = false
+
 -- CBRING V2 & SCP LOCK CONFIGURATION
 getgenv().TargetPlayerInput = ""
 getgenv().LockPlayerEnabled = false
@@ -67,17 +80,14 @@ getgenv().AutoFireCDNearest = false
 getgenv().AutoFireCDChosen = false
 getgenv().AutoFireCDAll = false
 
--- Biến lưu trữ đối tượng được chọn (Có thể là Model Door hoặc Model Gate)
 local selectedObject = nil
 local objectHighlight = nil
-local searchFilterMode = "All" -- Mặc định chế độ lọc là "All"
+local searchFilterMode = "All" 
 
--- Biến kiểm soát khóa cứng
 local PlayerLockReady = false
 local TeamLockReady = false
 local ScpLockReady = false
 
--- Vị trí khóa cứng cho Cbring V2
 local LockedPlayerPositions = {}
 local LockedTeamPositions = {}
 local LockedScpPositions = {}
@@ -96,7 +106,6 @@ TracerLine.Thickness = 1.5
 TracerLine.Color = Color3.fromRGB(0, 255, 0)
 TracerLine.Visible = false
 
--- Vẽ Khung Box vuông khi Detect Silent Aim
 local TargetBox = Drawing.new("Square")
 TargetBox.Thickness = 2
 TargetBox.Color = Color3.fromRGB(0, 255, 0)
@@ -117,7 +126,6 @@ UserInputService.TouchMoved:Connect(function(touch, gameProcessed)
     if gameProcessed then return end
     local delta = touch.Delta
     local swipeSpeed = math.sqrt(delta.X^2 + delta.Y^2)
-    
     if swipeSpeed > getgenv().SwipeThreshold then
         IsSwipeBreaking = true
         LastSwipeBreakTime = os.clock()
@@ -133,7 +141,6 @@ task.spawn(function()
     end
 end)
 
--- Status UI Updater (0ms Delay)
 local function updateStatusUI(text, isLocked)
     local statusLabel = _G.NexusMultiStatusLabel
     if statusLabel then
@@ -143,7 +150,6 @@ local function updateStatusUI(text, isLocked)
     end
 end
 
--- Helper: Hàm định dạng dấu chấm phân cách hàng nghìn (2.345.837)
 local function formatNumberWithDots(amount)
     local formatted = tostring(amount)
     while true do  
@@ -153,7 +159,6 @@ local function formatNumberWithDots(amount)
     return formatted
 end
 
--- Game Team & Faction Logic
 local function getPlayerRole(player)
     if not player or not player.Character then return "Unknown" end
     if player.Team then
@@ -182,25 +187,20 @@ local function isPartVisible(targetPart)
     return #parts == 0
 end
 
--- R6 Dynamic Target Scanner Engine
 local function getAimbotTargetPart(character)
     if not getgenv().WallCheck and not getgenv().WallCheckV2 then
         return character:FindFirstChild("Head")
     end
-
     if getgenv().WallCheck and not getgenv().WallCheckV2 then
         local head = character:FindFirstChild("Head")
         if head and isPartVisible(head) then return head end
         return nil
     end
-
     if getgenv().WallCheckV2 then
         local head = character:FindFirstChild("Head")
         if head and isPartVisible(head) then return head end
-
         local torso = character:FindFirstChild("Torso")
         if torso and isPartVisible(torso) then return torso end
-
         local limbs = {"Right Arm", "Left Arm", "Right Leg", "Left Leg"}
         for i = 1, #limbs do
             local limb = character:FindFirstChild(limbs[i])
@@ -210,30 +210,25 @@ local function getAimbotTargetPart(character)
     return nil
 end
 
--- DYNAMIC FOV CENTER POSITION ENGINE (PC MOUSE VS MOBILE TOUCH)
 local function getDynamicFOVCenter()
     if UserInputService.MouseEnabled then
         local mousePos = UserInputService:GetMouseLocation()
-        if mousePos then
-            return Vector2.new(mousePos.X, mousePos.Y)
-        end
+        if mousePos then return Vector2.new(mousePos.X, mousePos.Y) end
     end
     local screenSize = Camera.ViewportSize
     return Vector2.new(screenSize.X / 2, screenSize.Y / 2)
 end
 
 -- ==========================================
--- UNIVERSAL CLICK DETECTOR FIRE ENGINE (DOORS & GATES)
+-- UNIVERSAL CLICK DETECTOR FIRE ENGINE
 -- ==========================================
 local function fireObjectClickDetectors(model, maxDistance)
     if not model then return end
     maxDistance = maxDistance or 9000
-
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     local myPos = character.HumanoidRootPart.Position
 
-    -- Trích xuất cấu trúc tìm kiếm CD linh hoạt (Hỗ trợ cấu trúc chuyên sâu của Gates)
     for _, descendant in ipairs(model:GetDescendants()) do
         if descendant:IsA("ClickDetector") then
             local parentPart = descendant.Parent
@@ -247,7 +242,6 @@ local function fireObjectClickDetectors(model, maxDistance)
     end
 end
 
--- Tìm Door hoặc Gate gần nhất dựa trên khoảng cách thực tế
 local function getNearestDoorOrGate()
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
     local charPos = LocalPlayer.Character.HumanoidRootPart.Position
@@ -292,18 +286,15 @@ local function highlightObject(model)
     objectHighlight.Parent = model
 end
 
--- Vòng lặp quản lý tổng hợp trạng thái Auto CD
 task.spawn(function()
     while task.wait(0.15) do
         if getgenv().AutoFireCDNearest then
             local nearest = getNearestDoorOrGate()
             if nearest then fireObjectClickDetectors(nearest, 45) end
         end
-        
         if getgenv().AutoFireCDChosen and selectedObject then
             fireObjectClickDetectors(selectedObject, 9000)
         end
-        
         if getgenv().AutoFireCDAll then
             if DoorsFolder then
                 for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end
@@ -316,7 +307,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- CORE METATABLE HOOK
+-- CORE METATABLE HOOK (INTEGRATED DECOMPILED LOGIC)
 -- ==========================================
 if not getgenv()._origFire then
     local mt = getrawmetatable(game)
@@ -325,6 +316,16 @@ if not getgenv()._origFire then
     mt.__namecall = newcclosure(function(self, ...)
         local method = getnamecallmethod()
         local args = {...}
+
+        -- Chặn Gói Tin SCP-096 Từ Module Decompiled Đã Được Thêm Tính Năng On/Off
+        if method == "FireServer" and not checkcaller() then
+            if getgenv().Block096LoS and Remote_096LoSReport and self == Remote_096LoSReport then
+                return nil -- Chặn gửi gói tin nhìn mặt SCP-096 [Immune]
+            end
+            if getgenv().Block096Trigger and Remote_096Trigger and self == Remote_096Trigger then
+                return nil -- Chặn gửi gói tin kích hoạt SCP-096 [Anti-Trigger]
+            end
+        end
 
         if method == "Raycast" and getgenv().SilentAimEnabled and not checkcaller() then
             if CurrentSilentAimPart then
@@ -350,11 +351,9 @@ if not getgenv()._origFire then
                 local argLower = string.lower(args[1])
                 if argLower == "shoot" or argLower == "fire" or argLower == "bullet" or string.find(argLower, "hit") then
                     getgenv().DetectedRemote = self
-
                     task.spawn(function()
                         updateStatusUI("LOCKED: " .. string.upper(tostring(self.Name)), true)
                     end)
-
                     for i = 1, (getgenv().rapidFire - 1) do 
                         getgenv()._origFire(self, unpack(args)) 
                     end
@@ -366,7 +365,42 @@ if not getgenv()._origFire then
     setreadonly(mt, true)
 end
 
--- Helper: Get Player Target by Smart Username Match
+-- Decompiled Script RenderStepped Loop Execution Logic (Auto Run)
+local v_u_12 = 0
+RunService.RenderStepped:Connect(function()
+    -- Nếu bật chặn toàn bộ Trigger hoặc LoS thì không chạy luồng quét gốc của game tránh quá tải vô ích
+    if getgenv().Block096LoS and getgenv().Block096Trigger then return end
+
+    local v41 = tick()
+    if v41 - v_u_12 < 0.1 then return end
+    v_u_12 = v41
+    local v42 = LocalPlayer.Character
+    if not v42 or v42:GetAttribute("EtaGogglesOn") then return end
+    local v43 = v42:FindFirstChild("Humanoid")
+    if not v43 or v43.Health <= 0 or LocalPlayer.Team == game.Teams.SCP then return end
+
+    -- Thao tác xử lý SCP-096 / SCP-173 quét tầm nhìn nguyên bản
+    local SCP096Model = Workspace:FindFirstChild("SCP-096")
+    if SCP096Model and SCP096Model ~= v42 and not getgenv().Block096LoS then
+        local v45 = SCP096Model:FindFirstChild("FaceTarget")
+        if v45 and (Camera.CFrame.Position - v45.Position).Magnitude <= 60 then
+            local _, v46 = Camera:WorldToViewportPoint(v45.Position)
+            if v46 then
+                local v47 = RaycastParams.new()
+                v47.FilterDescendantsInstances = { v42, SCP096Model }
+                v47.FilterType = Enum.RaycastFilterType.Exclude
+                local v48 = workspace:Raycast(Camera.CFrame.Position, v45.Position - Camera.CFrame.Position, v47)
+                if (not v48 or v48.Instance == v45) and Remote_096LoSReport and Remote_096Trigger then
+                    Remote_096LoSReport:FireServer(false, SCP096Model)
+                    if not getgenv().Block096Trigger then
+                        Remote_096Trigger:FireServer(SCP096Model)
+                    end
+                end
+            end
+        end
+    end
+end)
+
 local function getSmartTargetPlayer(str)
     if str == "" then return nil end
     str = string.lower(str)
@@ -378,22 +412,16 @@ local function getSmartTargetPlayer(str)
     return nil
 end
 
--- Helper: Get SCP Model by Number String
 local function getSCPModelByNumber(numStr)
     if numStr == "" then return nil end
     for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") then
-            if string.match(obj.Name, "^SCP%-" .. numStr) then
-                return obj
-            end
+        if obj:IsA("Model") and string.match(obj.Name, "^SCP%-" .. numStr) then
+            return obj
         end
     end
     return nil
 end
 
--- ==========================================
--- CBRING & POSITION LOCK MOTOR ENGINE
--- ==========================================
 local function cbringCharacter(targetChar)
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         if targetChar and targetChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChildOfClass("Humanoid") and targetChar:FindFirstChildOfClass("Humanoid").Health > 0 then
@@ -433,7 +461,6 @@ RunService.Heartbeat:Connect(function()
                     else
                         if player.Team and player.Team.Name == getgenv().TargetTeamSelection then shouldBring = true end
                     end
-
                     if shouldBring then
                         if not LockedTeamPositions[player.Name] then
                             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -470,12 +497,12 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Visuals: ESP Chams Render Loop
+-- Visuals: Players & Doors/Gates Dynamic Render Loop
 RunService.RenderStepped:Connect(function()
+    -- 1. HỆ THỐNG ESP CHAMS CHO NGƯỜI CHƠI
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Model") and obj ~= LocalPlayer.Character and obj:FindFirstChild("Head") then
             local isSCP = string.match(obj.Name, "^SCP%-%d+") ~= nil
-
             if getgenv().EspEnabled then
                 local hl = obj:FindFirstChild("NexusChams")
                 if not hl then
@@ -485,7 +512,6 @@ RunService.RenderStepped:Connect(function()
                     hl.OutlineTransparency = 0
                     hl.Parent = obj
                 end
-
                 local ply = Players:GetPlayerFromCharacter(obj)
                 local modelColor = ply and ply.TeamColor and ply.TeamColor.Color or Color3.fromRGB(255, 50, 50)
                 local displayName = ply and ply.DisplayName or obj.Name
@@ -501,7 +527,6 @@ RunService.RenderStepped:Connect(function()
                     bb.Size = UDim2.new(0, 200, 0, 50)
                     bb.AlwaysOnTop = true
                     bb.ExtentsOffset = Vector3.new(0, 2.5, 0)
-
                     local tl = Instance.new("TextLabel")
                     tl.Name = "TextLabel"
                     tl.Size = UDim2.new(1, 0, 1, 0)
@@ -512,25 +537,20 @@ RunService.RenderStepped:Connect(function()
                     tl.Parent = bb
                     bb.Parent = obj
                 end
-
                 local tl = bb:FindFirstChild("TextLabel")
                 if tl then
                     tl.TextColor3 = modelColor
                     local displayText = ""
-
                     local distance = 0
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and obj:FindFirstChild("HumanoidRootPart") then
                         distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - obj.HumanoidRootPart.Position).Magnitude)
                     end
-
                     if getgenv().ShowSCPNum and isSCP then
                         displayText = "[" .. string.match(obj.Name, "^SCP%-%d+[^%s]*") .. "]\n"
                     end
-
                     if getgenv().ShowInfo then
                         displayText = displayText .. displayName .. " [" .. distance .. "m]"
                     end
-
                     tl.Text = displayText
                     bb.Enabled = (displayText ~= "")
                 end
@@ -542,6 +562,66 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+
+    -- 2. HỆ THỐNG MỚI: ESP CHAMS & NUMBER CHO DOORS & GATES
+    local function processFolderESP(folder, color, labelType)
+        if not folder then return end
+        local children = folder:GetChildren()
+        for idx, obj in ipairs(children) do
+            if getgenv().DoorGateEspEnabled then
+                -- Highlight Cham
+                local hl = obj:FindFirstChild("DoorGateCham")
+                if not hl then
+                    hl = Instance.new("Highlight")
+                    hl.Name = "DoorGateCham"
+                    hl.FillTransparency = 0.6
+                    hl.OutlineTransparency = 0.1
+                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    hl.Parent = obj
+                end
+                hl.FillColor = color
+                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                hl.Enabled = true
+
+                -- Tìm phần BasePart trung tâm để gắn BillboardGui
+                local targetPart = obj:FindFirstChild("Hitbox") or obj:FindFirstChildOfClass("BasePart") or obj:FindFirstChild("Main")
+                if targetPart then
+                    local bb = targetPart:FindFirstChild("DoorGateTag")
+                    if not bb then
+                        bb = Instance.new("BillboardGui")
+                        bb.Name = "DoorGateTag"
+                        bb.Size = UDim2.new(0, 140, 0, 45)
+                        bb.AlwaysOnTop = true
+                        local tl = Instance.new("TextLabel")
+                        tl.Name = "TextLabel"
+                        tl.Size = UDim2.new(1, 0, 1, 0)
+                        tl.BackgroundTransparency = 1
+                        tl.Font = Enum.Font.GothamBold
+                        tl.TextSize = 13
+                        tl.TextStrokeTransparency = 0
+                        tl.Parent = bb
+                        bb.Parent = targetPart
+                    end
+                    local tl = bb:FindFirstChild("TextLabel")
+                    if tl then
+                        tl.TextColor3 = color
+                        tl.Text = "[" .. labelType .. "]\n" .. tostring(idx)
+                        bb.Enabled = true
+                    end
+                end
+            else
+                -- Tắt ESP
+                local hl = obj:FindFirstChild("DoorGateCham")
+                if hl then hl.Enabled = false end
+                for _, desc in ipairs(obj:GetDescendants()) do
+                    if desc.Name == "DoorGateTag" then desc.Enabled = false end
+                end
+            end
+        end
+    end
+
+    processFolderESP(DoorsFolder, Color3.fromRGB(0, 255, 100), "Door")  -- Màu xanh: Door
+    processFolderESP(GatesFolder, Color3.fromRGB(255, 220, 0), "Gate")  -- Màu vàng: Gate
 end)
 
 -- Movement: TPWalk Speed Motor
@@ -630,14 +710,12 @@ end)
 -- Aimbot Core & FOV Visual Rendering
 RunService.RenderStepped:Connect(function()
     local targetCenter = getDynamicFOVCenter()
-    
     FOVCircle.Radius = getgenv().AimbotFOV
     FOVCircle.Position = targetCenter
     FOVCircle.Visible = getgenv().ShowFOV and (getgenv().AimbotEnabled or getgenv().SilentAimEnabled)
 
     if getgenv().SilentAimEnabled and CurrentSilentAimPart and not IsSwipeBreaking then
         FOVCircle.Color = Color3.fromRGB(0, 255, 0)
-        
         local screenPos, _ = Camera:WorldToViewportPoint(CurrentSilentAimPart.Position)
         TracerLine.From = targetCenter
         TracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
@@ -646,19 +724,15 @@ RunService.RenderStepped:Connect(function()
         if getgenv().SilentAimBoxDetect and CurrentSilentAimPart.Parent and CurrentSilentAimPart.Parent:FindFirstChild("HumanoidRootPart") then
             local targetChar = CurrentSilentAimPart.Parent
             local hrp = targetChar.HumanoidRootPart
-            
             local _, onScreen = Camera:WorldToViewportPoint(hrp.Position)
             if onScreen then
                 local extentsSize = targetChar:GetExtentsSize()
                 local topWorld = (hrp.CFrame * CFrame.new(0, extentsSize.Y / 2, 0)).Position
                 local bottomWorld = (hrp.CFrame * CFrame.new(0, -extentsSize.Y / 2, 0)).Position
-                
                 local topScreen = Camera:WorldToViewportPoint(topWorld)
                 local bottomScreen = Camera:WorldToViewportPoint(bottomWorld)
-                
                 local boxHeight = math.abs(topScreen.Y - bottomScreen.Y)
                 local boxWidth = boxHeight * 0.65
-                
                 TargetBox.Size = Vector2.new(boxWidth, boxHeight)
                 TargetBox.Position = Vector2.new(topScreen.X - (boxWidth / 2), topScreen.Y)
                 TargetBox.Visible = true
@@ -686,10 +760,7 @@ task.spawn(function()
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local hrp = player.Character.HumanoidRootPart
                 local role = getPlayerRole(player)
-
-                if not OriginalHitboxes[player.Name] then
-                    OriginalHitboxes[player.Name] = hrp.Size
-                end
+                if not OriginalHitboxes[player.Name] then OriginalHitboxes[player.Name] = hrp.Size end
 
                 local shouldExpand = false
                 if getgenv().HitboxTargetTeam == "All" then shouldExpand = true
@@ -815,14 +886,16 @@ local function createPage(name, isScrollable)
     return p
 end
 
+-- TRANG SẮP XẾP THỨ TỰ (CREDIT HUB LUÔN ĐỨNG CUỐI)
 local Page1 = createPage("WeaponMods", false)
 local Page2 = createPage("Aimbot", true) 
 local Page3 = createPage("Hitbox", false)
 local Page4 = createPage("VisualsMovement", true)
 local Page5 = createPage("CbringV2", true)
 local Page6 = createPage("PlayerStatus", true)
-local Page7 = createPage("Credit", false)
-local Page8 = createPage("AutoDoors", true)
+local Page7 = createPage("AutoDoors", true)
+local Page8 = createPage("RemotesControl", true) -- Mới: Trang Remotes Control
+local Page9 = createPage("Credit", false)        -- Đẩy Credit Hub xuống cuối cùng
 
 local PageTitles = {
     "P1: WEAPON MODS", 
@@ -831,8 +904,9 @@ local PageTitles = {
     "P4: ESP & MOVEMENT", 
     "P5: CBRING V2", 
     "P6: PLAYER STATUS",
-    "P7: CREDITS HUB",
-    "P8: AUTO DOORS & GATES"
+    "P7: AUTO DOORS & GATES",
+    "P8: REMOTES CONTROL",
+    "P9: CREDITS HUB"
 }
 
 local function showPage(index)
@@ -844,20 +918,13 @@ showPage(1)
 PrevBtn.MouseButton1Click:Connect(function() CurrentPage = CurrentPage == 1 and #Pages or CurrentPage - 1 showPage(CurrentPage) end)
 NextBtn.MouseButton1Click:Connect(function() CurrentPage = CurrentPage == #Pages and 1 or CurrentPage + 1 showPage(CurrentPage) end)
 
--- ==========================================
--- UNIVERSAL DRAG ENGINE (PC & MOBILE)
--- ==========================================
+-- DRAG ENGINE (PC & MOBILE)
 local Dragging = false
 local DragInput, DragStart, StartPos
 
 local function update(input)
     local delta = input.Position - DragStart
-    MainFrame.Position = UDim2.new(
-        StartPos.X.Scale, 
-        StartPos.X.Offset + delta.X, 
-        StartPos.Y.Scale, 
-        StartPos.Y.Offset + delta.Y
-    )
+    MainFrame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
 end
 
 TitleBar.InputBegan:Connect(function(input)
@@ -865,35 +932,23 @@ TitleBar.InputBegan:Connect(function(input)
         Dragging = true
         DragStart = input.Position
         StartPos = MainFrame.Position
-        
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                Dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then Dragging = false end
         end)
     end
 end)
 
 TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        DragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then DragInput = input end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == DragInput and Dragging then
-        update(input)
-    end
+    if input == DragInput and Dragging then update(input) end
 end)
 
--- ==========================================
--- INTERFACE INTERACTION SETUP
--- ==========================================
 local savedSize = MainFrame.Size
 MinBtn.MouseButton1Click:Connect(function()
-    local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 310, 0, 45)
-    })
+    local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 310, 0, 45)})
     minimizeTween:Play()
     minimizeTween.Completed:Connect(function()
         MainFrame.Visible = false
@@ -906,9 +961,7 @@ OpenBtn.MouseButton1Click:Connect(function()
     OpenBtn.Visible = false
     MainFrame.Size = UDim2.new(0, 310, 0, 45)
     MainFrame.Visible = true
-    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = savedSize
-    }):Play()
+    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = savedSize}):Play()
 end)
 
 local function createToggle(parent, text, posY, globalVarName)
@@ -952,9 +1005,7 @@ local function createDelayToggle(parent, text, globalVarName, motorFlagName)
         if getgenv()[globalVarName] then
             Btn.Text = "PREPARING (1s)..."
             Btn.BackgroundColor3 = Color3.fromRGB(230, 120, 0) 
-            
             task.wait(1.0) 
-            
             if getgenv()[globalVarName] then 
                 if motorFlagName == "PlayerLockReady" then PlayerLockReady = true end
                 if motorFlagName == "TeamLockReady" then TeamLockReady = true end
@@ -1007,11 +1058,7 @@ local function createTextBox(parent, labelText, placeholder, posY)
             local currentBg = Box.BackgroundColor3
             Box.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
             Box.BackgroundTransparency = 0.2
-            local fadeTween = TweenService:Create(Box, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {
-                BackgroundColor3 = currentBg,
-                BackgroundTransparency = 0
-            })
-            fadeTween:Play()
+            TweenService:Create(Box, TweenInfo.new(0.8, Enum.EasingStyle.Linear), {BackgroundColor3 = currentBg, BackgroundTransparency = 0}):Play()
         end
     end)
     return Box
@@ -1094,7 +1141,6 @@ local TargetStats = {"Firerate", "Spread", "MaxRange", "ProjectileSpeed", "Proje
 local GunBoxes = {}
 for _, stat in ipairs(TargetStats) do GunBoxes[stat] = createTextBox(Scroll, stat, "Enter value...", 0) end
 Scroll.CanvasSize = UDim2.new(0, 0, 0, 210)
-
 GunBoxes["Firerate"].Text = "0.04"
 
 local ModGunBtn = Instance.new("TextButton")
@@ -1117,8 +1163,7 @@ ModGunBtn.MouseButton1Click:Connect(function()
         end
     end
     ModGunBtn.Text = "MODULES UPDATED!"
-    local tG = TweenService:Create(ModGunBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 200, 80)})
-    tG:Play()
+    TweenService:Create(ModGunBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 200, 80)}):Play()
     task.wait(1.0)
     ModGunBtn.Text = "APPLY MODULE CHANGES"
     TweenService:Create(ModGunBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(220, 30, 30)}):Play()
@@ -1140,12 +1185,10 @@ task.spawn(function()
                 end
                 if #tools > 0 then currentWeapon = tools[1] end
             end
-
             if currentWeapon ~= "None" and RawStats[currentWeapon] and type(RawStats[currentWeapon]) == "table" then
                 dynamicFirerate = RawStats[currentWeapon].Firerate
             end
         end
-
         if dynamicFirerate and dynamicFirerate > 0 then
             local rapidMultiplier = getgenv().rapidFireEnabled and getgenv().rapidFire or 1
             local calculatedBulletsPerSec = math.round((1 / dynamicFirerate) * rapidMultiplier)
@@ -1237,15 +1280,21 @@ L4.Padding = UDim.new(0, 8)
 local P4 = Instance.new("UIPadding", Page4)
 P4.PaddingTop = UDim.new(0, 10)
 
+createHeaderLabel(Page4, "Player Visuals")
 createToggle(Page4, "ESP Chams (Wallhack)", 0, "EspEnabled")
 createToggle(Page4, "Display Name & Distance", 0, "ShowInfo")
 createToggle(Page4, "Display SCP Designations", 0, "ShowSCPNum")
+
+-- SỬA & THÊM: Nút On Off ESP Chams & Number Door/Gate vào Tab Visuals
+createHeaderLabel(Page4, "Facility Infrastructure Visuals")
+createToggle(Page4, "ESP Door/Gate Chams & ID", 0, "DoorGateEspEnabled")
 
 local Divider = Instance.new("Frame", Page4)
 Divider.Size = UDim2.new(0.9, 0, 0, 2)
 Divider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Divider.BorderSizePixel = 0
 
+createHeaderLabel(Page4, "Locomotion Velocity")
 createToggle(Page4, "TpWalk Speed Engine", 0, "TpWalkEnabled")
 local SpeedInput = createTextBox(Page4, "Walk Velocity Speed:", "25", 0)
 SpeedInput.Text = "25"
@@ -1264,9 +1313,7 @@ local P5 = Instance.new("UIPadding", Page5)
 P5.PaddingTop = UDim.new(0, 10)
 
 local UserBox = createTextBox(Page5, "Smart Search User:", "Enter name...", nil)
-UserBox:GetPropertyChangedSignal("Text"):Connect(function()
-    getgenv().TargetPlayerInput = UserBox.Text
-end)
+UserBox:GetPropertyChangedSignal("Text"):Connect(function() getgenv().TargetPlayerInput = UserBox.Text end)
 
 local BringPlayerBtn = createActionButton(Page5, "BRING PLAYER (INSTANT)", Color3.fromRGB(150, 50, 200))
 BringPlayerBtn.MouseButton1Click:Connect(function()
@@ -1291,9 +1338,7 @@ SpaceDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 SpaceDivider1.BorderSizePixel = 0
 
 local ScpBox = createTextBox(Page5, "Enter SCP Number:", "e.g. 096, 049-2", nil)
-ScpBox:GetPropertyChangedSignal("Text"):Connect(function()
-    getgenv().TargetSCPNumber = string.match(ScpBox.Text, "[%d%-]+") or ""
-end)
+ScpBox:GetPropertyChangedSignal("Text"):Connect(function() getgenv().TargetSCPNumber = string.match(ScpBox.Text, "[%d%-]+") or "" end)
 
 local BringScpBtn = createActionButton(Page5, "BRING SCP (INSTANT)", Color3.fromRGB(220, 50, 50))
 BringScpBtn.MouseButton1Click:Connect(function()
@@ -1380,17 +1425,13 @@ Instance.new("UIPadding", Page6).PaddingLeft = UDim.new(0, 12)
 getgenv().StatusTargetInput = ""
 
 local SearchStatusBox = createTextBox(Page6, "Smart Search Target:", "Username...", nil)
-SearchStatusBox:GetPropertyChangedSignal("Text"):Connect(function()
-    getgenv().StatusTargetInput = SearchStatusBox.Text
-end)
+SearchStatusBox:GetPropertyChangedSignal("Text"):Connect(function() getgenv().StatusTargetInput = SearchStatusBox.Text end)
 
 local function getStatusTargetPlayer(str)
     if str == "" then return nil end
     str = string.lower(str)
     for _, player in ipairs(Players:GetPlayers()) do
-        if string.sub(string.lower(player.Name), 1, #str) == str or string.sub(string.lower(player.DisplayName), 1, #str) == str then
-            return player
-        end
+        if string.sub(string.lower(player.Name), 1, #str) == str or string.sub(string.lower(player.DisplayName), 1, #str) == str then return player end
     end
     return nil
 end
@@ -1444,7 +1485,6 @@ task.spawn(function()
             if role == "SCP" then
                 UI_IsSCP.Text = " IsScp: True"
                 UI_IsSCP.TextColor3 = Color3.fromRGB(255, 60, 60)
-                
                 if target.Character then
                     local scpMatch = string.match(target.Character.Name, "^SCP%-[0-9a-zA-Z%-]+")
                     detectedScpStr = scpMatch or target.Character.Name
@@ -1455,18 +1495,15 @@ task.spawn(function()
 
                 local scpKillFound = "0"
                 local myPlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-                
                 if myPlayerGui and detectedScpStr ~= "None" then
                     local mainFrame = myPlayerGui:FindFirstChild("Main") and myPlayerGui.Main:FindFirstChild("Frame")
                     local scpList = mainFrame and mainFrame:FindFirstChild("ScpList")
                     local targetScpNode = scpList and scpList:FindFirstChild(detectedScpStr)
-                    
                     if targetScpNode and targetScpNode:FindFirstChild("Kills") and targetScpNode.Kills:IsA("TextLabel") then
                         local cleanNum = string.match(targetScpNode.Kills.Text, "%d+")
                         scpKillFound = cleanNum or "0"
                     end
                 end
-
                 UI_SCPKills.Text = " SCP Kill: " .. scpKillFound
             else
                 UI_IsSCP.Text = " IsScp: False"
@@ -1488,7 +1525,6 @@ task.spawn(function()
                 local hp = hum.Health
                 local maxHp = hum.MaxHealth
                 local pct = (maxHp > 0) and (hp / maxHp) or 0
-
                 UI_Health.Text = string.format(" Health: %.1f / %.1f (%d%%)", hp, maxHp, math.floor(pct * 100))
                 if pct >= 0.75 then UI_Health.TextColor3 = Color3.fromRGB(50, 220, 50)
                 elseif pct >= 0.50 then UI_Health.TextColor3 = Color3.fromRGB(220, 220, 50)
@@ -1498,7 +1534,6 @@ task.spawn(function()
                 UI_Health.Text = " Health: DEAD / NOT SPAWNED"
                 UI_Health.TextColor3 = Color3.fromRGB(150, 150, 150)
             end
-
             local currentWeapon = "None"
             if target.Character then
                 local tool = target.Character:FindFirstChildOfClass("Tool")
@@ -1528,14 +1563,196 @@ L6:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- ==========================================
--- PAGE 7: CREDITS HUB (DYNAMIC SCAN DEVELOPER)
+-- PAGE 7: ADVANCED AUTO DOORS & GATES HUB
 -- ==========================================
 local L7 = Instance.new("UIListLayout", Page7)
-L7.Padding = UDim.new(0, 10)
-L7.HorizontalAlignment = Enum.HorizontalAlignment.Center
-L7.VerticalAlignment = Enum.VerticalAlignment.Center
+L7.Padding = UDim.new(0, 8)
+local P7 = Instance.new("UIPadding", Page7)
+P7.PaddingTop = UDim.new(0, 10)
 
-local CreditBox = Instance.new("Frame", Page7)
+createHeaderLabel(Page7, "Nearest Object Trigger")
+local FireCDNearestBtn = createActionButton(Page7, "Fire CD Nearest Door/Gate", Color3.fromRGB(35, 35, 35))
+FireCDNearestBtn.MouseButton1Click:Connect(function()
+    local nearest = getNearestDoorOrGate()
+    if nearest then fireObjectClickDetectors(nearest, 45) end
+end)
+createToggle(Page7, "Auto Fire CD Nearest Door/Gate", 0, "AutoFireCDNearest")
+
+local ObjDivider1 = Instance.new("Frame", Page7)
+ObjDivider1.Size = UDim2.new(0.9, 0, 0, 2)
+ObjDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ObjDivider1.BorderSizePixel = 0
+
+createHeaderLabel(Page7, "Target Selection Panel")
+local TargetSelectionFrame = Instance.new("Frame", Page7)
+TargetSelectionFrame.Size = UDim2.new(0.9, 0, 0, 75)
+TargetSelectionFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TargetSelectionFrame.BorderSizePixel = 0
+Instance.new("UICorner", TargetSelectionFrame).CornerRadius = UDim.new(0, 8)
+
+local SearchBar = Instance.new("TextBox", TargetSelectionFrame)
+SearchBar.Size = UDim2.new(0.92, 0, 0, 30)
+SearchBar.Position = UDim2.new(0.04, 0, 0, 6)
+SearchBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchBar.PlaceholderText = 'Type "Door[2]", "Gate[2]" or choose Door/Gate list then type Number'
+SearchBar.Text = ""
+SearchBar.Font = Enum.Font.Gotham
+SearchBar.TextSize = 10
+Instance.new("UICorner", SearchBar).CornerRadius = UDim.new(0, 5)
+
+local DoorsBtn = Instance.new("TextButton", TargetSelectionFrame)
+DoorsBtn.Size = UDim2.new(0.29, 0, 0, 26)
+DoorsBtn.Position = UDim2.new(0.04, 0, 0, 42)
+DoorsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+DoorsBtn.Text = "Doors"
+DoorsBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+DoorsBtn.Font = Enum.Font.GothamBold
+DoorsBtn.TextSize = 10
+Instance.new("UICorner", DoorsBtn).CornerRadius = UDim.new(0, 4)
+
+local GatesBtn = Instance.new("TextButton", TargetSelectionFrame)
+GatesBtn.Size = UDim2.new(0.29, 0, 0, 26)
+GatesBtn.Position = UDim2.new(0.35, 0, 0, 42)
+GatesBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+GatesBtn.Text = "Gates"
+GatesBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+GatesBtn.Font = Enum.Font.GothamBold
+GatesBtn.TextSize = 10
+Instance.new("UICorner", GatesBtn).CornerRadius = UDim.new(0, 4)
+
+local AllFilterBtn = Instance.new("TextButton", TargetSelectionFrame)
+AllFilterBtn.Size = UDim2.new(0.28, 0, 0, 26)
+AllFilterBtn.Position = UDim2.new(0.68, 0, 0, 42)
+AllFilterBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255) 
+AllFilterBtn.Text = "All"
+AllFilterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AllFilterBtn.Font = Enum.Font.GothamBold
+AllFilterBtn.TextSize = 10
+Instance.new("UICorner", AllFilterBtn).CornerRadius = UDim.new(0, 4)
+
+local function updateFilterUI(activeBtn)
+    DoorsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    GatesBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    AllFilterBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    DoorsBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    GatesBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    AllFilterBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    activeBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    activeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+end
+
+DoorsBtn.MouseButton1Click:Connect(function() searchFilterMode = "Doors" updateFilterUI(DoorsBtn) end)
+GatesBtn.MouseButton1Click:Connect(function() searchFilterMode = "Gates" updateFilterUI(GatesBtn) end)
+AllFilterBtn.MouseButton1Click:Connect(function() searchFilterMode = "All" updateFilterUI(AllFilterBtn) end)
+
+local SelectionIndicatorBtn = Instance.new("TextButton")
+SelectionIndicatorBtn.Size = UDim2.new(0.9, 0, 0, 35)
+SelectionIndicatorBtn.BackgroundColor3 = Color3.fromRGB(55, 35, 75)
+SelectionIndicatorBtn.Text = "SELECTED TARGET: NONE"
+SelectionIndicatorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SelectionIndicatorBtn.Font = Enum.Font.GothamBold
+SelectionIndicatorBtn.TextSize = 10
+SelectionIndicatorBtn.Parent = Page7
+Instance.new("UICorner", SelectionIndicatorBtn).CornerRadius = UDim.new(0, 6)
+
+SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+    local text = SearchBar.Text
+    if text == "" then return end
+    local foundObj = nil
+    
+    if searchFilterMode == "All" then
+        local typePrefix, indexStr = string.match(text, "^([a-zA-Z]+)%[(%d+)%]$")
+        if typePrefix and indexStr then
+            local idx = tonumber(indexStr)
+            typePrefix = string.lower(typePrefix)
+            if string.find(typePrefix, "door") and DoorsFolder then
+                local allDoors = DoorsFolder:GetChildren()
+                if allDoors[idx] then foundObj = allDoors[idx] end
+            elseif string.find(typePrefix, "gate") and GatesFolder then
+                local allGates = GatesFolder:GetChildren()
+                if allGates[idx] then foundObj = allGates[idx] end
+            end
+        end
+    elseif searchFilterMode == "Doors" then
+        local idx = tonumber(text)
+        if idx and DoorsFolder then
+            local allDoors = DoorsFolder:GetChildren()
+            if allDoors[idx] then foundObj = allDoors[idx] end
+        end
+    elseif searchFilterMode == "Gates" then
+        local idx = tonumber(text)
+        if idx and GatesFolder then
+            local allGates = GatesFolder:GetChildren()
+            if allGates[idx] then foundObj = allGates[idx] end
+        end
+    end
+    
+    if foundObj then
+        selectedObject = foundObj
+        SelectionIndicatorBtn.Text = "SELECTED TARGET: " .. string.upper(selectedObject.Name) .. " (" .. searchFilterMode .. ")"
+        highlightObject(selectedObject)
+    end
+end)
+
+local FireCDChosenBtn = createActionButton(Page7, "Fire CD Chosen Door/Gate", Color3.fromRGB(35, 35, 35))
+FireCDChosenBtn.MouseButton1Click:Connect(function()
+    if selectedObject then fireObjectClickDetectors(selectedObject, 9000) end
+end)
+createToggle(Page7, "Auto Fire CD Chosen Door/Gate", 0, "AutoFireCDChosen")
+
+local ObjDivider2 = Instance.new("Frame", Page7)
+ObjDivider2.Size = UDim2.new(0.9, 0, 0, 2)
+ObjDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ObjDivider2.BorderSizePixel = 0
+
+createHeaderLabel(Page7, "All Objects Trigger")
+local FireCDAllBtn = createActionButton(Page7, "Fire CD ALL Doors & Gates", Color3.fromRGB(150, 30, 30))
+FireCDAllBtn.MouseButton1Click:Connect(function()
+    if DoorsFolder then for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end end
+    if GatesFolder then for _, gate in ipairs(GatesFolder:GetChildren()) do fireObjectClickDetectors(gate, 9000) end end
+end)
+createToggle(Page7, "Auto Fire CD ALL Doors & Gates", 0, "AutoFireCDAll")
+
+L7:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Page7.CanvasSize = UDim2.new(0, 0, 0, L7.AbsoluteContentSize.Y + 25)
+end)
+
+-- ==========================================
+-- THÊM MỚI - PAGE 8: REMOTES CONTROL 
+-- ==========================================
+local L8 = Instance.new("UIListLayout", Page8)
+L8.Padding = UDim.new(0, 8)
+local P8 = Instance.new("UIPadding", Page8)
+P8.PaddingTop = UDim.new(0, 10)
+
+createHeaderLabel(Page8, "SCP-096 Packet Mitigator")
+createToggle(Page8, "Block 096LoS [Immune]", 0, "Block096LoS")
+createToggle(Page8, "Block 096Trigger [Anti-Trigger]", 0, "Block096Trigger")
+
+local SafetyNotice = Instance.new("TextLabel", Page8)
+SafetyNotice.Size = UDim2.new(0.9, 0, 0, 50)
+SafetyNotice.BackgroundTransparency = 1
+SafetyNotice.Text = "Notice: Turning on Immune prevents the server from knowing you looked at 096. Anti-Trigger bypasses rage trigger packets completely."
+SafetyNotice.TextColor3 = Color3.fromRGB(140, 140, 150)
+SafetyNotice.Font = Enum.Font.Gotham
+SafetyNotice.TextSize = 10
+SafetyNotice.TextWrapped = true
+SafetyNotice.TextXAlignment = Enum.TextXAlignment.Left
+
+L8:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Page8.CanvasSize = UDim2.new(0, 0, 0, L8.AbsoluteContentSize.Y + 25)
+end)
+
+-- ==========================================
+-- PAGE 9: CREDITS HUB (LUÔN ĐỨNG CUỐI)
+-- ==========================================
+local L9 = Instance.new("UIListLayout", Page9)
+L9.Padding = UDim.new(0, 10)
+L9.HorizontalAlignment = Enum.HorizontalAlignment.Center
+L9.VerticalAlignment = Enum.VerticalAlignment.Center
+
+local CreditBox = Instance.new("Frame", Page9)
 CreditBox.Size = UDim2.new(0.9, 0, 0, 180)
 CreditBox.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 CreditBox.BorderSizePixel = 0
@@ -1580,30 +1797,24 @@ local SubMsg = Instance.new("TextLabel", CreditBox)
 SubMsg.Size = UDim2.new(1, 0, 0, 40)
 SubMsg.Position = UDim2.new(0, 0, 0, 120)
 SubMsg.BackgroundTransparency = 1
-SubMsg.Text = "Cross-Platform Drag Engine v6.0. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
+SubMsg.Text = "Cross-Platform Drag Engine v7.0. Optimized for PC Mouse Tracking & Mobile Gesture Control Systems."
 SubMsg.TextColor3 = Color3.fromRGB(150, 150, 150)
 SubMsg.Font = Enum.Font.Gotham
 SubMsg.TextSize = 10
 SubMsg.TextWrapped = true
 SubMsg.TextXAlignment = Enum.TextXAlignment.Left
 
--- Vòng lặp liên tục quét Server để xác minh sự hiện diện của mqxq11 bằng ID tài khoản mới
 task.spawn(function()
     while true do
         local devInServer = false
-        
         local targetDev = Players:FindFirstChild("mqxq11")
         if targetDev then
             devInServer = true
         else
             for _, player in ipairs(Players:GetPlayers()) do
-                if player.UserId == DEVELOPER_USER_ID then
-                    devInServer = true
-                    break
-                end
+                if player.UserId == DEVELOPER_USER_ID then devInServer = true; break end
             end
         end
-
         if devInServer then
             DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (True in this server)"
             DevMsg.TextColor3 = Color3.fromRGB(0, 255, 150)
@@ -1611,190 +1822,6 @@ task.spawn(function()
             DevMsg.Text = "Developer of NoneUserHub (Be an SCP or Guard):\nmqxq11 [Mask] (False) [ID: " .. tostring(DEVELOPER_USER_ID) .. "]"
             DevMsg.TextColor3 = Color3.fromRGB(255, 80, 80)
         end
-        
         task.wait(2.5)
     end
-end)
-
--- ==========================================
--- PAGE 8: ADVANCED ADVANCED AUTO DOORS & GATES HUB
--- ==========================================
-local L8 = Instance.new("UIListLayout", Page8)
-L8.Padding = UDim.new(0, 8)
-local P8 = Instance.new("UIPadding", Page8)
-P8.PaddingTop = UDim.new(0, 10)
-
--- --- SECTION 1: NEAREST REALTIME MOTOR ---
-createHeaderLabel(Page8, "Nearest Object Trigger")
-
-local FireCDNearestBtn = createActionButton(Page8, "Fire CD Nearest Door/Gate", Color3.fromRGB(35, 35, 35))
-FireCDNearestBtn.MouseButton1Click:Connect(function()
-    local nearest = getNearestDoorOrGate()
-    if nearest then fireObjectClickDetectors(nearest, 45) end
-end)
-
-createToggle(Page8, "Auto Fire CD Nearest Door/Gate", 0, "AutoFireCDNearest")
-
-local ObjDivider1 = Instance.new("Frame", Page8)
-ObjDivider1.Size = UDim2.new(0.9, 0, 0, 2)
-ObjDivider1.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ObjDivider1.BorderSizePixel = 0
-
--- --- SECTION 2: INTEGRATED SEARCH CONTROLLER ---
-createHeaderLabel(Page8, "Target Selection Panel")
-
--- Khởi tạo Sub-Frame chứa thanh Tìm kiếm và bộ ba nút phân loại
-local TargetSelectionFrame = Instance.new("Frame", Page8)
-TargetSelectionFrame.Size = UDim2.new(0.9, 0, 0, 75)
-TargetSelectionFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-TargetSelectionFrame.BorderSizePixel = 0
-Instance.new("UICorner", TargetSelectionFrame).CornerRadius = UDim.new(0, 8)
-
--- 1. Thanh Search Box nâng cấp
-local SearchBar = Instance.new("TextBox", TargetSelectionFrame)
-SearchBar.Size = UDim2.new(0.92, 0, 0, 30)
-SearchBar.Position = UDim2.new(0.04, 0, 0, 6)
-SearchBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
-SearchBar.PlaceholderText = 'Type "Door[2]", "Gate[2]" or choose Door/Gate list then type Number'
-SearchBar.Text = ""
-SearchBar.Font = Enum.Font.Gotham
-SearchBar.TextSize = 10
-Instance.new("UICorner", SearchBar).CornerRadius = UDim.new(0, 5)
-
--- 2. Bộ ba nút phân loại ở dưới thanh Search
-local DoorsBtn = Instance.new("TextButton", TargetSelectionFrame)
-DoorsBtn.Size = UDim2.new(0.29, 0, 0, 26)
-DoorsBtn.Position = UDim2.new(0.04, 0, 0, 42)
-DoorsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-DoorsBtn.Text = "Doors"
-DoorsBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-DoorsBtn.Font = Enum.Font.GothamBold
-DoorsBtn.TextSize = 10
-Instance.new("UICorner", DoorsBtn).CornerRadius = UDim.new(0, 4)
-
-local GatesBtn = Instance.new("TextButton", TargetSelectionFrame)
-GatesBtn.Size = UDim2.new(0.29, 0, 0, 26)
-GatesBtn.Position = UDim2.new(0.35, 0, 0, 42)
-GatesBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-GatesBtn.Text = "Gates"
-GatesBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-GatesBtn.Font = Enum.Font.GothamBold
-GatesBtn.TextSize = 10
-Instance.new("UICorner", GatesBtn).CornerRadius = UDim.new(0, 4)
-
-local AllFilterBtn = Instance.new("TextButton", TargetSelectionFrame)
-AllFilterBtn.Size = UDim2.new(0.28, 0, 0, 26)
-AllFilterBtn.Position = UDim2.new(0.68, 0, 0, 42)
-AllFilterBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255) -- Mặc định active All
-AllFilterBtn.Text = "All"
-AllFilterBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AllFilterBtn.Font = Enum.Font.GothamBold
-AllFilterBtn.TextSize = 10
-Instance.new("UICorner", AllFilterBtn).CornerRadius = UDim.new(0, 4)
-
--- Logic đồng bộ màu sắc khi bấm các nút lọc phân loại
-local function updateFilterUI(activeBtn)
-    DoorsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    GatesBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    AllFilterBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    DoorsBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    GatesBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    AllFilterBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    
-    activeBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    activeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-end
-
-DoorsBtn.MouseButton1Click:Connect(function() searchFilterMode = "Doors" updateFilterUI(DoorsBtn) end)
-GatesBtn.MouseButton1Click:Connect(function() searchFilterMode = "Gates" updateFilterUI(GatesBtn) end)
-AllFilterBtn.MouseButton1Click:Connect(function() searchFilterMode = "All" updateFilterUI(AllFilterBtn) end)
-
--- Nút hiển thị kết quả đối tượng được Target hiện tại
-local SelectionIndicatorBtn = Instance.new("TextButton")
-SelectionIndicatorBtn.Size = UDim2.new(0.9, 0, 0, 35)
-SelectionIndicatorBtn.BackgroundColor3 = Color3.fromRGB(55, 35, 75)
-SelectionIndicatorBtn.Text = "SELECTED TARGET: NONE"
-SelectionIndicatorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SelectionIndicatorBtn.Font = Enum.Font.GothamBold
-SelectionIndicatorBtn.TextSize = 10
-SelectionIndicatorBtn.Parent = Page8
-Instance.new("UICorner", SelectionIndicatorBtn).CornerRadius = UDim.new(0, 6)
-
--- ENGINE XỬ LÝ SEARCH REALTIME CHÍNH XÁC THEO MÔ TẢ LOGIC
-SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
-    local text = SearchBar.Text
-    if text == "" then return end
-    
-    local foundObj = nil
-    
-    if searchFilterMode == "All" then
-        -- Logic All: Nhập thủ công dạng "Door[2]" hoặc "Gate[2]"
-        local typePrefix, indexStr = string.match(text, "^([a-zA-Z]+)%[(%d+)%]$")
-        if typePrefix and indexStr then
-            local idx = tonumber(indexStr)
-            typePrefix = string.lower(typePrefix)
-            
-            if string.find(typePrefix, "door") and DoorsFolder then
-                local allDoors = DoorsFolder:GetChildren()
-                if allDoors[idx] then foundObj = allDoors[idx] end
-            elseif string.find(typePrefix, "gate") and GatesFolder then
-                local allGates = GatesFolder:GetChildren()
-                if allGates[idx] then foundObj = allGates[idx] end
-            end
-        end
-    elseif searchFilterMode == "Doors" then
-        -- Logic Doors: Chỉ nhập bằng số nguyên, ví dụ "2"
-        local idx = tonumber(text)
-        if idx and DoorsFolder then
-            local allDoors = DoorsFolder:GetChildren()
-            if allDoors[idx] then foundObj = allDoors[idx] end
-        end
-    elseif searchFilterMode == "Gates" then
-        -- Logic Gates: Chỉ nhập bằng số nguyên, ví dụ "2"
-        local idx = tonumber(text)
-        if idx and GatesFolder then
-            local allGates = GatesFolder:GetChildren()
-            if allGates[idx] then foundObj = allGates[idx] end
-        end
-    end
-    
-    -- Áp dụng thay đổi Target nếu tìm thấy đối tượng hợp lệ trong hệ thống vật lý
-    if foundObj then
-        selectedObject = foundObj
-        SelectionIndicatorBtn.Text = "SELECTED TARGET: " .. string.upper(selectedObject.Name) .. " (" .. searchFilterMode .. ")"
-        highlightObject(selectedObject)
-    end
-end)
-
--- Hành động thủ công kích hoạt nhanh Chosen
-local FireCDChosenBtn = createActionButton(Page8, "Fire CD Chosen Door/Gate", Color3.fromRGB(35, 35, 35))
-FireCDChosenBtn.MouseButton1Click:Connect(function()
-    if selectedObject then fireObjectClickDetectors(selectedObject, 9000) end
-end)
-
-createToggle(Page8, "Auto Fire CD Chosen Door/Gate", 0, "AutoFireCDChosen")
-
-local ObjDivider2 = Instance.new("Frame", Page8)
-ObjDivider2.Size = UDim2.new(0.9, 0, 0, 2)
-ObjDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ObjDivider2.BorderSizePixel = 0
-
--- --- SECTION 3: MASS DESTRUCTION TRIGGERS ---
-createHeaderLabel(Page8, "All Objects Trigger")
-
-local FireCDAllBtn = createActionButton(Page8, "Fire CD ALL Doors & Gates", Color3.fromRGB(150, 30, 30))
-FireCDAllBtn.MouseButton1Click:Connect(function()
-    if DoorsFolder then
-        for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end
-    end
-    if GatesFolder then
-        for _, gate in ipairs(GatesFolder:GetChildren()) do fireObjectClickDetectors(gate, 9000) end
-    end
-end)
-
-createToggle(Page8, "Auto Fire CD ALL Doors & Gates", 0, "AutoFireCDAll")
-
-L8:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Page8.CanvasSize = UDim2.new(0, 0, 0, L8.AbsoluteContentSize.Y + 25)
 end)

@@ -1591,7 +1591,7 @@ L6:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 -- ==========================================
--- PAGE 7: ADVANCED AUTO DOORS & GATES HUB (ĐÃ KHÔI PHỤC VÀ SỬA HOÀN CHỈNH)
+-- PAGE 7: ADVANCED AUTO DOORS & GATES HUB
 -- ==========================================
 local L7 = Instance.new("UIListLayout", Page7)
 L7.Padding = UDim.new(0, 8)
@@ -1732,61 +1732,82 @@ FireCDChosenBtn.MouseButton1Click:Connect(function()
 end)
 
 createToggle(Page7, "Auto Fire CD Chosen Object", 0, "AutoFireCDChosen")
-createToggle(Page7, "Auto Fire CD All Objects", 0, "AutoFireCDAll")
+
+local ObjDivider2 = Instance.new("Frame", Page7)
+ObjDivider2.Size = UDim2.new(0.9, 0, 0, 2)
+ObjDivider2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ObjDivider2.BorderSizePixel = 0
+
+createHeaderLabel(Page7, "Global Facility Trigger")
+local FireCDAllBtn = createActionButton(Page7, "Fire CD All Doors & Gates", Color3.fromRGB(200, 50, 50))
+FireCDAllBtn.MouseButton1Click:Connect(function()
+    if DoorsFolder then
+        for _, door in ipairs(DoorsFolder:GetChildren()) do fireObjectClickDetectors(door, 9000) end
+    end
+    if GatesFolder then
+        for _, gate in ipairs(GatesFolder:GetChildren()) do fireObjectClickDetectors(gate, 9000) end
+    end
+end)
+createToggle(Page7, "Auto Fire CD All Doors & Gates", 0, "AutoFireCDAll")
 
 L7:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page7.CanvasSize = UDim2.new(0, 0, 0, L7.AbsoluteContentSize.Y + 25)
 end)
 
 -- ==========================================
--- PAGE 8: REMOTES CONTROL NETWORK (ĐÃ KHÔI PHỤC)
+-- PAGE 8: REMOTES CONTROL
 -- ==========================================
 local L8 = Instance.new("UIListLayout", Page8)
 L8.Padding = UDim.new(0, 8)
 local P8 = Instance.new("UIPadding", Page8)
 P8.PaddingTop = UDim.new(0, 10)
 
-createHeaderLabel(Page8, "SCP Network Security Controls")
-createToggle(Page8, "Block 096 LoS Report Packet", 0, "Block096LoS")
-createToggle(Page8, "Block 096 Rage Trigger", 0, "Block096Trigger")
-createToggle(Page8, "Block 173 Detection Packet", 0, "Block173Detect")
+createHeaderLabel(Page8, "SCP-096 Protections")
+createToggle(Page8, "Block SCP-096 Line of Sight", 0, "Block096LoS")
+createToggle(Page8, "Block SCP-096 Trigger Remote", 0, "Block096Trigger")
 
 local RemoteDivider = Instance.new("Frame", Page8)
 RemoteDivider.Size = UDim2.new(0.9, 0, 0, 2)
 RemoteDivider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 RemoteDivider.BorderSizePixel = 0
 
-createHeaderLabel(Page8, "Exploitation & Automation")
-createToggle(Page8, "Spam 173 Detect (5x/sec)", 0, "Spam173Detect")
+createHeaderLabel(Page8, "SCP-173 Remotes Control")
+createToggle(Page8, "Block SCP-173 Detect Remote", 0, "Block173Detect")
+createToggle(Page8, "Spam SCP-173 Detect Remote", 0, "Spam173Detect")
 
 L8:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Page8.CanvasSize = UDim2.new(0, 0, 0, L8.AbsoluteContentSize.Y + 25)
 end)
 
 -- ==========================================
--- PAGE 9: CREDITS HUB (ĐÃ KHÔI PHỤC HOÀN CHỈNH ĐOẠN CUỐI)
+-- PAGE 9: CREDITS HUB
 -- ==========================================
 local L9 = Instance.new("UIListLayout", Page9)
-L9.Padding = UDim.new(0, 12)
-L9.HorizontalAlignment = Enum.HorizontalAlignment.Center
+L9.Padding = UDim.new(0, 8)
 local P9 = Instance.new("UIPadding", Page9)
-P9.PaddingTop = UDim.new(0, 30)
+P9.PaddingTop = UDim.new(0, 10)
+Instance.new("UIPadding", Page9).PaddingLeft = UDim.new(0, 12)
 
-local LogoLabel = Instance.new("TextLabel", Page9)
-LogoLabel.Size = UDim2.new(0.9, 0, 0, 40)
-LogoLabel.BackgroundTransparency = 1
-LogoLabel.Text = "NEXUS ENGINE"
-LogoLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
-LogoLabel.Font = Enum.Font.GothamBold
-LogoLabel.TextSize = 20
+createHeaderLabel(Page9, "Script Info & Developer")
 
-local CreditLabel = Instance.new("TextLabel", Page9)
-CreditLabel.Size = UDim2.new(0.9, 0, 0, 100)
-CreditLabel.BackgroundTransparency = 1
-CreditLabel.Text = "ULTIMATE MULTI-TAB MENU\nPremium Edition v7.0\n\nDeveloped by mqxq11\nAuthorized Developer ID verified:\n" .. tostring(DEVELOPER_USER_ID)
-CreditLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-CreditLabel.Font = Enum.Font.GothamSemibold
-CreditLabel.TextSize = 12
-CreditLabel.TextWrapped = true
+local DevLabel = Instance.new("TextLabel")
+DevLabel.Size = UDim2.new(0.9, 0, 0, 40)
+DevLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+DevLabel.Text = " Developer: mqxq11\n User ID: " .. tostring(DEVELOPER_USER_ID)
+DevLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+DevLabel.Font = Enum.Font.GothamBold
+DevLabel.TextSize = 11
+DevLabel.TextXAlignment = Enum.TextXAlignment.Left
+DevLabel.Parent = Page9
+Instance.new("UICorner", DevLabel).CornerRadius = UDim.new(0, 6)
 
-print("Nexus Premium Multi-Tab Menu Loaded successfully!")
+local VerLabel = Instance.new("TextLabel")
+VerLabel.Size = UDim2.new(0.9, 0, 0, 30)
+VerLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+VerLabel.Text = " Version: Premium Edition v7.0"
+VerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+VerLabel.Font = Enum.Font.GothamSemibold
+VerLabel.TextSize = 11
+VerLabel.TextXAlignment = Enum.TextXAlignment.Left
+VerLabel.Parent = Page9
+Instance.new("UICorner", VerLabel).CornerRadius = UDim.new(0, 6)

@@ -1,0 +1,173 @@
+-- LocalScript: DroneControl
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Remote
+local explodeRemote = ReplicatedStorage:WaitForChild("Network"):WaitForChild("ExplodeDrone")
+
+-- ClickDetector
+local droneCrates = workspace:WaitForChild("DroneCrates")
+local targetCrate = droneCrates:GetChildren()[32]
+local clickDetector = targetCrate and targetCrate:FindFirstChild("ClickDetector")
+
+-- Tạo GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DroneControlGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 180)
+mainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 12)
+uiCorner.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundTransparency = 1
+title.Text = "🚁 Drone Control"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
+
+-- Minimize Button
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 5)
+minimizeBtn.Text = "−"
+minimizeBtn.TextColor3 = Color3.new(1,1,1)
+minimizeBtn.BackgroundTransparency = 1
+minimizeBtn.TextScaled = true
+minimizeBtn.Parent = mainFrame
+
+-- Explode Button
+local explodeBtn = Instance.new("TextButton")
+explodeBtn.Size = UDim2.new(0.9, 0, 0, 45)
+explodeBtn.Position = UDim2.new(0.05, 0, 0.35, 0)
+explodeBtn.Text = "💥 Explode Drone [E]"
+explodeBtn.TextColor3 = Color3.new(1,1,1)
+explodeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+explodeBtn.TextScaled = true
+explodeBtn.Font = Enum.Font.GothamBold
+explodeBtn.Parent = mainFrame
+
+local explodeCorner = Instance.new("UICorner")
+explodeCorner.CornerRadius = UDim.new(0, 8)
+explodeCorner.Parent = explodeBtn
+
+-- Auto Get Toggle
+local autoToggle = Instance.new("TextButton")
+autoToggle.Size = UDim2.new(0.9, 0, 0, 45)
+autoToggle.Position = UDim2.new(0.05, 0, 0.65, 0)
+autoToggle.Text = "🔄 Auto Get Drones: OFF"
+autoToggle.TextColor3 = Color3.new(1,1,1)
+autoToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+autoToggle.TextScaled = true
+autoToggle.Font = Enum.Font.GothamBold
+autoToggle.Parent = mainFrame
+
+local autoCorner = Instance.new("UICorner")
+autoCorner.CornerRadius = UDim.new(0, 8)
+autoCorner.Parent = autoToggle
+
+-- Variables
+local isMinimized = false
+local isAutoOn = false
+local autoConnection = nil
+
+-- Draggable (PC + Mobile)
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+local function updateInput(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateInput(input)
+    end
+end)
+
+-- Minimize Animation
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    local targetSize = isMinimized and UDim2.new(0, 280, 0, 50) or UDim2.new(0, 280, 0, 180)
+    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Size = targetSize})
+    tween:Play()
+    
+    explodeBtn.Visible = not isMinimized
+    autoToggle.Visible = not isMinimized
+    minimizeBtn.Text = isMinimized and "+" or "−"
+end)
+
+-- Explode Drone
+local function explodeDrone()
+    explodeRemote:FireServer()
+end
+
+explodeBtn.MouseButton1Click:Connect(explodeDrone)
+
+-- Phím E
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        explodeDrone()
+    end
+end)
+
+-- Auto Get Drones
+autoToggle.MouseButton1Click:Connect(function()
+    isAutoOn = not isAutoOn
+    autoToggle.Text = "🔄 Auto Get Drones: " .. (isAutoOn and "ON" or "OFF")
+    autoToggle.BackgroundColor3 = isAutoOn and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(50, 150, 50)
+    
+    if isAutoOn then
+        autoConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if clickDetector then
+                clickDetector:Invoke()  -- Click ClickDetector
+            end
+        end)
+    else
+        if autoConnection then
+            autoConnection:Disconnect()
+            autoConnection = nil
+        end
+    end
+end)
+
+print("🚁 Drone Control GUI Loaded!")

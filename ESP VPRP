@@ -9,12 +9,12 @@ local Cam = workspace.CurrentCamera
 -- [[ SETTINGS SYSTEM ]]
 local Settings = {
     EspEnabled = true,
-    EspTeam = false,         -- Mặc định OFF
+    EspTeam = false,         -- Mặc định OFF (No)
     EspOutline = true,
     EspFill = true,
     FillDensity = 0.5,       -- 50%
-    ShowName = false,        -- Mặc định OFF
-    ShowHealthStuds = false, -- Mặc định OFF
+    ShowName = false,        -- Mặc định OFF (No)
+    ShowHealthStuds = false, -- Mặc định OFF (No)
     FilterInnocent = false,
     FilterDangerous = false
 }
@@ -121,7 +121,7 @@ RunService.RenderStepped:Connect(function()
         local innocentStatus = isInnocent(player)
         local dangerousStatus = isDangerous(player)
 
-        -- Highlight Chams (Vẫn hiện cho tất cả người chơi)
+        -- Highlight Chams (Giữ ESP cho TẤT CẢ người chơi, không bị Filter làm ẩn)
         esp.Highlight.Parent = char
         local teamColor = player.TeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
         
@@ -137,7 +137,7 @@ RunService.RenderStepped:Connect(function()
 
         local textLines = {}
 
-        -- Filter Emoji Status (Cảnh báo người chơi Criminal)
+        -- Filter Status (Chỉ chèn thêm cảnh báo chứ không ẩn ESP)
         if isCrim then
             if Settings.FilterInnocent and not innocentStatus then
                 table.insert(textLines, "❗️ Non-Innocent")
@@ -209,7 +209,7 @@ minBtn.Font = Enum.Font.GothamBold
 minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 minBtn.TextSize = 18
 
--- [[ LOGIC KÉO THẢ HỖ TRỢ PC CẢ MOBILE ]]
+-- [[ LOGIC KÉO THẢ PC & MOBILE ]]
 local dragging = false
 local dragStart, startPos
 local dragInput

@@ -9,12 +9,12 @@ local Cam = workspace.CurrentCamera
 -- [[ SETTINGS SYSTEM ]]
 local Settings = {
     EspEnabled = true,
-    EspTeam = true,
+    EspTeam = false,         -- Mặc định OFF
     EspOutline = true,
     EspFill = true,
-    FillDensity = 0.5, -- 50%
-    ShowName = true,
-    ShowHealthStuds = true,
+    FillDensity = 0.5,       -- 50%
+    ShowName = false,        -- Mặc định OFF
+    ShowHealthStuds = false, -- Mặc định OFF
     FilterInnocent = false,
     FilterDangerous = false
 }
@@ -28,7 +28,7 @@ local dangerousItems = {
     "M1928", "MP5", "Saiga 12K", "Model 590", "Terminator", "Patriot"
 }
 
--- [[ PATH HELPER FUNCTIONS ]]
+-- [[ HELPER FUNCTIONS ]]
 local function isCriminal(player)
     if not player.Team then return false end
     local criminalColors = { ["Slime green"] = true, ["Neon orange"] = true, ["Dusty Rose"] = true, ["Plum"] = true, ["Dark stone grey"] = true }
@@ -74,7 +74,7 @@ local function createEspForPlayer(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_Text_" .. player.Name
     billboard.AlwaysOnTop = true
-    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.Size = UDim2.new(0, 200, 0, 60)
     billboard.StudsOffset = Vector3.new(0, 3, 0)
 
     local textLabel = Instance.new("TextLabel", billboard)
@@ -121,22 +121,7 @@ RunService.RenderStepped:Connect(function()
         local innocentStatus = isInnocent(player)
         local dangerousStatus = isDangerous(player)
 
-        -- Kiểm tra Filter Innocent & Filter Dangerous trên team Criminal
-        if isCrim then
-            if Settings.FilterInnocent and innocentStatus then
-                esp.Highlight.Parent = nil
-                esp.Billboard.Parent = nil
-                continue
-            end
-
-            if Settings.FilterDangerous and not dangerousStatus then
-                esp.Highlight.Parent = nil
-                esp.Billboard.Parent = nil
-                continue
-            end
-        end
-
-        -- Update Highlight (Chams)
+        -- Highlight Chams (Vẫn hiện cho tất cả người chơi)
         esp.Highlight.Parent = char
         local teamColor = player.TeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
         
@@ -146,13 +131,13 @@ RunService.RenderStepped:Connect(function()
         esp.Highlight.FillColor = teamColor
         esp.Highlight.FillTransparency = Settings.EspFill and (1 - Settings.FillDensity) or 1
 
-        -- Update Billboard Text
+        -- Billboard Text
         esp.Billboard.Parent = game.CoreGui
         esp.Billboard.Adornee = hrp
 
         local textLines = {}
 
-        -- Filter Emoji Status
+        -- Filter Emoji Status (Cảnh báo người chơi Criminal)
         if isCrim then
             if Settings.FilterInnocent and not innocentStatus then
                 table.insert(textLines, "❗️ Non-Innocent")
@@ -162,18 +147,15 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- Name Info
         if Settings.ShowName then
             table.insert(textLines, string.format("%s (@%s)", player.DisplayName, player.Name))
         end
 
-        -- Team Info
         if Settings.EspTeam then
             local teamName = player.Team and player.Team.Name or "No Team"
             table.insert(textLines, "[" .. teamName .. "]")
         end
 
-        -- Health & Distance Info
         if Settings.ShowHealthStuds then
             local dist = math.floor((Cam.CFrame.Position - hrp.Position).Magnitude)
             local hp = math.floor(hum.Health)
@@ -185,7 +167,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [[ MODERN GUI WITH DRAGGABLE & ANIMATION ]]
+-- [[ MODERN GUI WITH DRAGGABLE (PC & MOBILE) ]]
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "ESP_System_UI"
 
@@ -199,7 +181,7 @@ mainFrame.ClipsDescendants = true
 local uiCorner = Instance.new("UICorner", mainFrame)
 uiCorner.CornerRadius = UDim.new(0, 8)
 
--- Header Bar (Kéo thả)
+-- Header Bar
 local header = Instance.new("Frame", mainFrame)
 header.Size = UDim2.new(1, 0, 0, 35)
 header.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
@@ -227,21 +209,31 @@ minBtn.Font = Enum.Font.GothamBold
 minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 minBtn.TextSize = 18
 
--- Logic Kéo Thả Độc Lập
-local dragging, dragInput, dragStart, startPos
+-- [[ LOGIC KÉO THẢ HỖ TRỢ PC CẢ MOBILE ]]
+local dragging = false
+local dragStart, startPos
+local dragInput
+
 header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
+
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
         end)
     end
 end)
+
 header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
 end)
+
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
@@ -258,21 +250,22 @@ minBtn.MouseButton1Click:Connect(function()
     TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = targetSize}):Play()
 end)
 
--- Scroll Container
+-- Scroll Container (Tự mở rộng chiều cao)
 local container = Instance.new("ScrollingFrame", mainFrame)
 container.Size = UDim2.new(1, 0, 1, -35)
 container.Position = UDim2.new(0, 0, 0, 35)
 container.BackgroundTransparency = 1
-container.CanvasSize = UDim2.new(0, 0, 0, 430)
-container.ScrollBarThickness = 3
+container.ScrollBarThickness = 4
+container.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
 local uiList = Instance.new("UIListLayout", container)
 uiList.SortOrder = Enum.SortOrder.LayoutOrder
-uiList.Padding = UDim.new(0, 5)
+uiList.Padding = UDim.new(0, 6)
 
 local uiPadding = Instance.new("UIPadding", container)
 uiPadding.PaddingTop = UDim.new(0, 8)
 uiPadding.PaddingLeft = UDim.new(0, 8)
+uiPadding.PaddingBottom = UDim.new(0, 10)
 
 -- Helper Tạo Nút Toggle
 local function createToggle(text, defaultState, callback)

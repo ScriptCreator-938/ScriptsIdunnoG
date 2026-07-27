@@ -1,0 +1,354 @@
+-- [[ SERVICES ]]
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Cam = workspace.CurrentCamera
+
+-- [[ SETTINGS SYSTEM ]]
+local Settings = {
+    EspEnabled = true,
+    EspTeam = true,
+    EspOutline = true,
+    EspFill = true,
+    FillDensity = 0.5, -- 50%
+    ShowName = true,
+    ShowHealthStuds = true,
+    FilterInnocent = false,
+    FilterDangerous = false
+}
+
+local dangerousItems = {
+    "Rope", "Shiv", "Baton", "G17", "Employee Keycard", 
+    "Corrections Keycard", "Directors Keycard", "Master Keycard", 
+    "G22", "G40", "M1014", "G36C", "HK416", "MP7",
+    "G18", "P90", "M4A1", "M82A1", "LEO MCX Spear", "The Harrow", 
+    "Five Seven", "FNX45", "G18C", "SW500", "M1A1", "M3 Grease Gun", 
+    "M1928", "MP5", "Saiga 12K", "Model 590", "Terminator", "Patriot"
+}
+
+-- [[ PATH HELPER FUNCTIONS ]]
+local function isCriminal(player)
+    if not player.Team then return false end
+    local criminalColors = { ["Slime green"] = true, ["Neon orange"] = true, ["Dusty Rose"] = true, ["Plum"] = true, ["Dark stone grey"] = true }
+    return criminalColors[player.TeamColor.Name] or string.find(string.lower(player.Team.Name), "criminal") ~= nil
+end
+
+local function isInnocent(player)
+    local svVars = player:FindFirstChild("ServerVariables")
+    if svVars then
+        local innocentVal = svVars:FindFirstChild("Innocent")
+        if innocentVal and innocentVal:IsA("ValueBase") then 
+            return innocentVal.Value == true 
+        end
+    end
+    return false
+end
+
+local function isDangerous(player)
+    local char = player.Character
+    if char then
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool and table.find(dangerousItems, tool.Name) then return true end
+    end
+    local bp = player:FindFirstChild("Backpack")
+    if bp then
+        for _, item in ipairs(bp:GetChildren()) do 
+            if table.find(dangerousItems, item.Name) then return true end 
+        end
+    end
+    return false
+end
+
+-- [[ STORAGE FOR ESP ]]
+local EspStorage = {}
+
+local function createEspForPlayer(player)
+    if player == LocalPlayer then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight_" .. player.Name
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_Text_" .. player.Name
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+
+    local textLabel = Instance.new("TextLabel", billboard)
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.TextSize = 13
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextStrokeTransparency = 0
+
+    EspStorage[player] = {
+        Highlight = highlight,
+        Billboard = billboard,
+        Label = textLabel
+    }
+end
+
+local function removeEsp(player)
+    if EspStorage[player] then
+        if EspStorage[player].Highlight then EspStorage[player].Highlight:Destroy() end
+        if EspStorage[player].Billboard then EspStorage[player].Billboard:Destroy() end
+        EspStorage[player] = nil
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do createEspForPlayer(p) end
+Players.PlayerAdded:Connect(createEspForPlayer)
+Players.PlayerRemoving:Connect(removeEsp)
+
+-- [[ UPDATE ESP LOOP ]]
+RunService.RenderStepped:Connect(function()
+    for player, esp in pairs(EspStorage) do
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChild("Humanoid")
+
+        if not Settings.EspEnabled or not char or not hrp or not hum or hum.Health <= 0 then
+            esp.Highlight.Parent = nil
+            esp.Billboard.Parent = nil
+            continue
+        end
+
+        local isCrim = isCriminal(player)
+        local innocentStatus = isInnocent(player)
+        local dangerousStatus = isDangerous(player)
+
+        -- Kiểm tra Filter Innocent & Filter Dangerous trên team Criminal
+        if isCrim then
+            if Settings.FilterInnocent and innocentStatus then
+                esp.Highlight.Parent = nil
+                esp.Billboard.Parent = nil
+                continue
+            end
+
+            if Settings.FilterDangerous and not dangerousStatus then
+                esp.Highlight.Parent = nil
+                esp.Billboard.Parent = nil
+                continue
+            end
+        end
+
+        -- Update Highlight (Chams)
+        esp.Highlight.Parent = char
+        local teamColor = player.TeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+        
+        esp.Highlight.OutlineColor = teamColor
+        esp.Highlight.OutlineTransparency = Settings.EspOutline and 0 or 1
+        
+        esp.Highlight.FillColor = teamColor
+        esp.Highlight.FillTransparency = Settings.EspFill and (1 - Settings.FillDensity) or 1
+
+        -- Update Billboard Text
+        esp.Billboard.Parent = game.CoreGui
+        esp.Billboard.Adornee = hrp
+
+        local textLines = {}
+
+        -- Filter Emoji Status
+        if isCrim then
+            if Settings.FilterInnocent and not innocentStatus then
+                table.insert(textLines, "❗️ Non-Innocent")
+            end
+            if Settings.FilterDangerous and dangerousStatus then
+                table.insert(textLines, "⚠️ Dangerous")
+            end
+        end
+
+        -- Name Info
+        if Settings.ShowName then
+            table.insert(textLines, string.format("%s (@%s)", player.DisplayName, player.Name))
+        end
+
+        -- Team Info
+        if Settings.EspTeam then
+            local teamName = player.Team and player.Team.Name or "No Team"
+            table.insert(textLines, "[" .. teamName .. "]")
+        end
+
+        -- Health & Distance Info
+        if Settings.ShowHealthStuds then
+            local dist = math.floor((Cam.CFrame.Position - hrp.Position).Magnitude)
+            local hp = math.floor(hum.Health)
+            table.insert(textLines, string.format("HP: %d | %d Studs", hp, dist))
+        end
+
+        esp.Label.Text = table.concat(textLines, "\n")
+        esp.Label.TextColor3 = teamColor
+    end
+end)
+
+-- [[ MODERN GUI WITH DRAGGABLE & ANIMATION ]]
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "ESP_System_UI"
+
+local mainFrame = Instance.new("Frame", gui)
+mainFrame.Size = UDim2.new(0, 260, 0, 420)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+
+local uiCorner = Instance.new("UICorner", mainFrame)
+uiCorner.CornerRadius = UDim.new(0, 8)
+
+-- Header Bar (Kéo thả)
+local header = Instance.new("Frame", mainFrame)
+header.Size = UDim2.new(1, 0, 0, 35)
+header.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+header.BorderSizePixel = 0
+
+local headerCorner = Instance.new("UICorner", header)
+headerCorner.CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel", header)
+title.Size = UDim2.new(1, -40, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "ESP CONTROLLER"
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local minBtn = Instance.new("TextButton", header)
+minBtn.Size = UDim2.new(0, 30, 0, 25)
+minBtn.Position = UDim2.new(1, -32, 0, 5)
+minBtn.BackgroundTransparency = 1
+minBtn.Text = "-"
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minBtn.TextSize = 18
+
+-- Logic Kéo Thả Độc Lập
+local dragging, dragInput, dragStart, startPos
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+header.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Minimize Animation
+local isMinimized = false
+minBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    minBtn.Text = isMinimized and "+" or "-"
+    local targetSize = isMinimized and UDim2.new(0, 260, 0, 35) or UDim2.new(0, 260, 0, 420)
+    TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+end)
+
+-- Scroll Container
+local container = Instance.new("ScrollingFrame", mainFrame)
+container.Size = UDim2.new(1, 0, 1, -35)
+container.Position = UDim2.new(0, 0, 0, 35)
+container.BackgroundTransparency = 1
+container.CanvasSize = UDim2.new(0, 0, 0, 430)
+container.ScrollBarThickness = 3
+
+local uiList = Instance.new("UIListLayout", container)
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 5)
+
+local uiPadding = Instance.new("UIPadding", container)
+uiPadding.PaddingTop = UDim.new(0, 8)
+uiPadding.PaddingLeft = UDim.new(0, 8)
+
+-- Helper Tạo Nút Toggle
+local function createToggle(text, defaultState, callback)
+    local btn = Instance.new("TextButton", container)
+    btn.Size = UDim2.new(1, -16, 0, 32)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 11
+    btn.BorderSizePixel = 0
+    btn.AutoButtonColor = false
+
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0, 5)
+
+    local state = defaultState
+    local function update()
+        btn.Text = text .. ": " .. (state and "ON" or "OFF")
+        btn.BackgroundColor3 = state and Color3.fromRGB(40, 150, 80) or Color3.fromRGB(50, 50, 55)
+        btn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 180, 180)
+    end
+    update()
+
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        update()
+        callback(state)
+    end)
+end
+
+-- Helper Tạo Textbox Input
+local function createTextbox(text, defaultVal, callback)
+    local frame = Instance.new("Frame", container)
+    frame.Size = UDim2.new(1, -16, 0, 32)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 5)
+
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(0.65, 0, 1, 0)
+    lbl.Position = UDim2.new(0, 8, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 11
+    lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local box = Instance.new("TextBox", frame)
+    box.Size = UDim2.new(0.3, -5, 0, 22)
+    box.Position = UDim2.new(0.7, 0, 0.15, 0)
+    box.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    box.Text = tostring(defaultVal)
+    box.Font = Enum.Font.GothamBold
+    box.TextSize = 11
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    local bCorner = Instance.new("UICorner", box)
+    bCorner.CornerRadius = UDim.new(0, 4)
+
+    box.FocusLost:Connect(function()
+        local num = tonumber(box.Text)
+        if num then
+            num = math.clamp(num, 0, 100)
+            box.Text = tostring(num)
+            callback(num / 100)
+        else
+            box.Text = tostring(Settings.FillDensity * 100)
+        end
+    end)
+end
+
+-- [[ KẾT NỐI NÚT BẤM CỦA UI ]]
+createToggle("ESP Master", Settings.EspEnabled, function(v) Settings.EspEnabled = v end)
+createToggle("Show Team", Settings.EspTeam, function(v) Settings.EspTeam = v end)
+createToggle("Outline ESP", Settings.EspOutline, function(v) Settings.EspOutline = v end)
+createToggle("Fill ESP", Settings.EspFill, function(v) Settings.EspFill = v end)
+createTextbox("Fill Density (%)", Settings.FillDensity * 100, function(v) Settings.FillDensity = v end)
+createToggle("Show Name", Settings.ShowName, function(v) Settings.ShowName = v end)
+createToggle("Show Health & Studs", Settings.ShowHealthStuds, function(v) Settings.ShowHealthStuds = v end)
+createToggle("Filter Innocent (Criminal)", Settings.FilterInnocent, function(v) Settings.FilterInnocent = v end)
+createToggle("Filter Dangerous (Criminal)", Settings.FilterDangerous, function(v) Settings.FilterDangerous = v end)

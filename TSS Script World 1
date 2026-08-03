@@ -134,7 +134,7 @@ end)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "TSS Script - NoneUserHub WORLD 1",
+   Name = "TSS Script - NoneUserHub (World 1)",
    LoadingTitle = "Loading",
    LoadingSubtitle = "Made by NoneUsername0813",
    ConfigurationSaving = {

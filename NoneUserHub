@@ -1,12 +1,9 @@
--- Lấy dịch vụ TeleportService và PlaceId hiện tại
 local TeleportService = game:GetService("TeleportService")
 local currentPlaceId = game.PlaceId
 
--- ID các World
 local WORLD_1_ID = 11455876520
 local WORLD_2_ID = 4072828011
 
--- 1. Tạo ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ChooseScriptGui"
 screenGui.ResetOnSpawn = false
@@ -14,7 +11,6 @@ screenGui.ResetOnSpawn = false
 local player = game:GetService("Players").LocalPlayer
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- 2. Khung chính (Main Frame)
 local frame = Instance.new("Frame")
 frame.Name = "MainFrame"
 frame.Size = UDim2.fromOffset(280, 200)
@@ -30,7 +26,6 @@ local frameCorner = Instance.new("UICorner")
 frameCorner.CornerRadius = UDim.new(0, 10)
 frameCorner.Parent = frame
 
--- 3. Tiêu đề
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "TitleLabel"
 titleLabel.Size = UDim2.fromOffset(210, 35)
@@ -43,7 +38,6 @@ titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = frame
 
--- 4. Nút Minimize (-)
 local minimizeBtn = Instance.new("TextButton")
 minimizeBtn.Name = "MinimizeBtn"
 minimizeBtn.Size = UDim2.fromOffset(28, 28)
@@ -59,7 +53,6 @@ local minCorner = Instance.new("UICorner")
 minCorner.CornerRadius = UDim.new(0, 6)
 minCorner.Parent = minimizeBtn
 
--- Nút mở lại GUI khi Minimize
 local openBtn = Instance.new("TextButton")
 openBtn.Name = "OpenGuiBtn"
 openBtn.Size = UDim2.fromOffset(45, 45)
@@ -73,10 +66,6 @@ openBtn.Parent = screenGui
 local openCorner = Instance.new("UICorner")
 openCorner.CornerRadius = UDim.new(1, 0)
 openCorner.Parent = openBtn
-
--- ==========================================
--- WORLD 1 & WORLD 2 BUTTONS
--- ==========================================
 
 local btnWorld1 = Instance.new("TextButton")
 btnWorld1.Name = "BtnWorld1"
@@ -131,10 +120,6 @@ labelHere2.Font = Enum.Font.SourceSansBold
 labelHere2.TextSize = 13
 labelHere2.Visible = (currentPlaceId ~= WORLD_1_ID)
 labelHere2.Parent = frame
-
--- ==========================================
--- GUI THỨ 2: CONFIRMATION MODAL (XÁC NHẬN)
--- ==========================================
 
 local confirmFrame = Instance.new("Frame")
 confirmFrame.Name = "ConfirmFrame"
@@ -193,12 +178,7 @@ local noCorner = Instance.new("UICorner")
 noCorner.CornerRadius = UDim.new(0, 8)
 noCorner.Parent = btnNo
 
--- Biến lưu link script cần chạy khi bấm Yes
 local targetScriptUrl = ""
-
--- ==========================================
--- XỬ LÝ SỰ KIỆN MINIMIZE / OPEN / NO
--- ==========================================
 
 minimizeBtn.MouseButton1Click:Connect(function()
     frame.Visible = false
@@ -230,7 +210,6 @@ btnWorld1.MouseButton1Click:Connect(function()
         screenGui:Destroy()
         loadstring(game:HttpGet(SCRIPT_W1_URL))()
     else
-        -- Khác World -> Hiện bảng xác nhận, gán URL World 1 để Execute khi bấm Yes
         targetScriptUrl = SCRIPT_W1_URL
         confirmTitle.Text = "Are you sure you gonna execute\n" .. btnWorld1.Text .. "?"
         frame.Visible = false
@@ -240,11 +219,9 @@ end)
 
 btnWorld2.MouseButton1Click:Connect(function()
     if currentPlaceId == WORLD_2_ID or currentPlaceId ~= WORLD_1_ID then
-        -- Ở cùng World 2 -> Chạy trực tiếp
         screenGui:Destroy()
         loadstring(game:HttpGet(SCRIPT_W2_URL))()
     else
-        
         targetScriptUrl = SCRIPT_W2_URL
         confirmTitle.Text = "Are you sure you gonna execute\n" .. btnWorld2.Text .. "?"
         frame.Visible = false

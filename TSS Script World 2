@@ -1713,8 +1713,8 @@ task.spawn(function()
 end)
 
 Rayfield:Notify({
-   Title = "Update Success!",
-   Content = "Version:",
+   Title = "Update Complete!",
+   Content = "Version: v1.6.4.5",
    Duration = 5,
    Image = 4483362458,
 })

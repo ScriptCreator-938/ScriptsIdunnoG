@@ -1720,7 +1720,7 @@ task.spawn(function()
         local data = {
             ["embeds"] = {{
                 ["title"] = "🚀 Script Executed!",
-                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub WORLD 1.**",
+                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub (World 1).**",
                 ["color"] = 16776960, 
                 ["fields"] = {
                     {

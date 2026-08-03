@@ -26,7 +26,7 @@ local function CheckBan()
     local success, response = pcall(function()
         return HttpService:GetAsync(BlacklistURL)
     end)
-    
+
     if success and response then
         local successDecode, bannedUsers = pcall(function() return HttpService:JSONDecode(response) end)
         if successDecode and bannedUsers then
@@ -181,6 +181,8 @@ getgenv().AutoBossMulti_43_200 = false
 getgenv().AutoBossMulti_43_1K = false
 
 getgenv().AutoJoinBattle = false
+getgenv().AutoResetRNG = false
+getgenv().ResetDelay = 1
 
 getgenv().LowGraphics = false
 getgenv().NightTimeMode = false
@@ -236,7 +238,7 @@ task.spawn(function()
             local hours = math.floor(elapsed / 3600)
             local minutes = math.floor((elapsed % 3600) / 60)
             local seconds = elapsed % 60
-            
+
             TimerLabel.Text = string.format("AFKing On.. Time AFKing: [%02d:%02d:%02d]", hours, minutes, seconds)
         end
         task.wait(1)
@@ -717,6 +719,64 @@ if LocalPlayer.Character then ApplyCustomStats(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(ApplyCustomStats)
 
 ----------------------------------------------------
+-- 🌀 TAB GLITCHES
+----------------------------------------------------
+local GlitchesTab = Window:CreateTab("🌀 Glitches", 4483362458)
+
+GlitchesTab:CreateSection("— Battle & RNG Systems —")
+
+GlitchesTab:CreateToggle({
+   Name = "🎲 Rolling Battle Reward [RNG]",
+   CurrentValue = false,
+   Flag = "AutoJoinBattleFlag",
+   Callback = function(Value)
+      getgenv().AutoJoinBattle = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoJoinBattle do
+               pcall(function()
+                  local Event = game:GetService("ReplicatedStorage").Remote.FromLocalForServer.Area.Accept
+                  Event:FireServer()
+               end)
+               task.wait(0.5)
+            end
+         end)
+      end
+   end,
+})
+
+GlitchesTab:CreateToggle({
+   Name = "🔄 Auto Reset [RNG]",
+   CurrentValue = false,
+   Flag = "AutoResetRNGFlag",
+   Callback = function(Value)
+      getgenv().AutoResetRNG = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoResetRNG do
+               local char = LocalPlayer.Character
+               local hum = char and char:FindFirstChildOfClass("Humanoid")
+               if hum then
+                  hum.Health = 0
+               end
+               task.wait(getgenv().ResetDelay)
+            end
+         end)
+      end
+   end,
+})
+
+GlitchesTab:CreateInput({
+   Name = "⏱️ Reset Delay (Seconds)",
+   PlaceholderText = "Default: 1",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      getgenv().ResetDelay = (num and num > 0) and num or 1
+   end,
+})
+
+----------------------------------------------------
 -- ⚔️ TAB AUTO FARM
 ----------------------------------------------------
 local BossTab = Window:CreateTab("⚔️ Auto Farm", 4483362458)
@@ -887,28 +947,6 @@ BossTab:CreateToggle({
    end,
 })
 
-BossTab:CreateSection("— Auto Battle —")
-
-BossTab:CreateToggle({
-   Name = "⚔️ Auto Join Battle",
-   CurrentValue = false,
-   Flag = "AutoJoinBattleFlag",
-   Callback = function(Value)
-      getgenv().AutoJoinBattle = Value
-      if Value then
-         task.spawn(function()
-            while getgenv().AutoJoinBattle do
-               pcall(function()
-                  local Event = game:GetService("ReplicatedStorage").Remote.FromLocalForServer.Area.Accept
-                  Event:FireServer()
-               end)
-               task.wait(0.5)
-            end
-         end)
-      end
-   end,
-})
-
 local function IsBossAvailableToWait(bossName)
     local isAvailable = true
     pcall(function()
@@ -981,7 +1019,7 @@ local function ExecuteBossLogic(bossList)
             currentSequenceIndex = 1
             activeTargetBoss = firstBoss.name
             currentWaitingBoss = nil
-            
+
             AttackBossTarget(fHead)
             task.wait(0.025)
             return
@@ -995,7 +1033,7 @@ local function ExecuteBossLogic(bossList)
             currentSequenceIndex = i
             activeTargetBoss = b.name
             currentWaitingBoss = nil
-            
+
             AttackBossTarget(head)
             task.wait(0.025)
             return
@@ -1177,15 +1215,15 @@ local elapsedTime = 0
 RunService.RenderStepped:Connect(function(deltaTime)
     frameCount = frameCount + 1
     elapsedTime = elapsedTime + deltaTime
-    
+
     if elapsedTime >= 0.1 then
         local currentFPS = math.floor(frameCount / elapsedTime)
-        
+
         UIFPSLabel:Set("Current Hub FPS: " .. currentFPS)
         if BlackFrameGui.Enabled then
             BlackFPSLabel.Text = "Current FPS: " .. currentFPS
         end
-        
+
         frameCount = 0
         elapsedTime = 0
     end
@@ -1373,6 +1411,11 @@ UpdateTab:CreateSection("— Latest Changelog —")
 UpdateTab:CreateParagraph({
     Title = "📌 World 2 Release Note",
     Content = "Note:\nSame version. We added TSS Script - NoneUserHub (World 2)."
+})
+
+UpdateTab:CreateParagraph({
+    Title = "📌 Changelog v1.6.5",
+    Content = "Whats new in v1.6.5\nWe added\nTab: Glitches\n\"Sol RNG Simulator\" at tab Glitches"
 })
 
 ----------------------------------------------------
@@ -1640,35 +1683,35 @@ task.spawn(function()
         local MarketplaceService = game:GetService("MarketplaceService")
         local Players = game:GetService("Players")
         local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-        
+
         local actualWebhook = "https://discord.com/api/webhooks/1522185304511877210/q_3TEhGk7gBtqNsMDXfcI1zl-lOofspHeyZM8sxnPHy5YyLTJHvUxS8hzRaJ1r9Vo1hM"
-        
+
         if game.GameId == 0 then
             repeat task.wait() until game.GameId ~= 0
         end
-        
+
         local rawGameName = ""
-        
+
         local apiSuccess, info = pcall(function()
             return MarketplaceService:GetProductInfo(game.GameId, Enum.InfoType.GamePass)
         end)
-        
+
         if apiSuccess and info and info.Name then
             rawGameName = info.Name
         else
             rawGameName = (workspace.Name ~= "Workspace") and workspace.Name or game.Name
         end
-        
+
         local checkName = string.lower(rawGameName)
         if string.find(checkName, "ugc") or game.PlaceId == 16422247192 or game.GameId == 5621453415 then 
             rawGameName = "[Code: Badges] Trade Strength"
         end
-        
+
         if rawGameName == "Workspace" or rawGameName == "" then rawGameName = "Unknown Game" end
-        
+
         local textGameName = "🌳 " .. rawGameName .. " (" .. tostring(game.PlaceId) .. ")"
         local textTime = "📅 " .. os.date("%X – %d/%m/%Y")
-        
+
         local data = {
             ["embeds"] = {{
                 ["title"] = "🚀 Script Executed!",
@@ -1704,7 +1747,7 @@ task.spawn(function()
 
         local headers = {["content-type"] = "application/json"}
         local json_data = HttpService:JSONEncode(data)
-        
+
         local requestFunc = syn and syn.request or http_request or fluxus and fluxus.request or request
         if requestFunc then
             requestFunc({Url = actualWebhook, Method = "POST", Headers = headers, Body = json_data})
@@ -1714,7 +1757,7 @@ end)
 
 Rayfield:Notify({
    Title = "Update Complete!",
-   Content = "Version v1.6.4.5",
+   Content = "Version v1.6.5",
    Duration = 5,
    Image = 4483362458,
 })

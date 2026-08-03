@@ -134,7 +134,7 @@ end)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "TSS Script - NoneUserHub (World 1 & World 2)",
+   Name = "TSS Script - NoneUserHub (World 1)",
    LoadingTitle = "Loading",
    LoadingSubtitle = "Made by NoneUsername0813",
    ConfigurationSaving = {
@@ -1757,7 +1757,7 @@ task.spawn(function()
         local data = {
             ["embeds"] = {{
                 ["title"] = "🚀 Script Executed!",
-                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub (World 1 & World 2).**",
+                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub (World 1).**",
                 ["color"] = 16776960, 
                 ["fields"] = {
                     {

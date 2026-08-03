@@ -134,7 +134,7 @@ end)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "TSS Script - NoneUserHub (World 1)",
+   Name = "TSS Script - NoneUserHub (World 1 & World 2)",
    LoadingTitle = "Loading",
    LoadingSubtitle = "Made by NoneUsername0813",
    ConfigurationSaving = {
@@ -181,6 +181,8 @@ getgenv().AutoBossMulti_8_200 = false
 getgenv().AutoBossMulti_8_1K = false
 
 getgenv().AutoJoinBattle = false
+getgenv().AutoResetRNG = false
+getgenv().ResetDelayValue = 1.0
 
 getgenv().LowGraphics = false
 getgenv().NightTimeMode = false
@@ -723,6 +725,64 @@ if LocalPlayer.Character then ApplyCustomStats(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(ApplyCustomStats)
 
 ----------------------------------------------------
+-- 🌀 TAB GLITCHES
+----------------------------------------------------
+local GlitchesTab = Window:CreateTab("🌀 Glitches", 4483362458)
+
+GlitchesTab:CreateSection("— Sol RNG Simulator —")
+
+GlitchesTab:CreateToggle({
+   Name = "🎲 Rolling Battle Reward [RNG]",
+   CurrentValue = false,
+   Flag = "AutoJoinBattleFlag",
+   Callback = function(Value)
+      getgenv().AutoJoinBattle = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoJoinBattle do
+               pcall(function()
+                  local Event = game:GetService("ReplicatedStorage").Remote.FromLocalForServer.Area.Accept
+                  Event:FireServer()
+               end)
+               task.wait(0.5)
+            end
+         end)
+      end
+   end,
+})
+
+GlitchesTab:CreateToggle({
+   Name = "⚡ Auto Reset [RNG]",
+   CurrentValue = false,
+   Flag = "AutoResetRNGFlag",
+   Callback = function(Value)
+      getgenv().AutoResetRNG = Value
+      if Value then
+         task.spawn(function()
+            while getgenv().AutoResetRNG do
+               local char = LocalPlayer.Character
+               local hum = char and char:FindFirstChildOfClass("Humanoid")
+               if hum then
+                  hum.Health = 0
+               end
+               task.wait(getgenv().ResetDelayValue or 1.0)
+            end
+         end)
+      end
+   end,
+})
+
+GlitchesTab:CreateInput({
+   Name = "⏱️ Reset Delay (Seconds)",
+   PlaceholderText = "Default: 1.0",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      getgenv().ResetDelayValue = (num and num > 0) and num or 1.0
+   end,
+})
+
+----------------------------------------------------
 -- ⚔️ TAB AUTO FARM
 ----------------------------------------------------
 local BossTab = Window:CreateTab("⚔️ Auto Farm", 4483362458)
@@ -916,28 +976,6 @@ BossTab:CreateToggle({
    end,
 })
 
-BossTab:CreateSection("— Auto Battle —")
-
-BossTab:CreateToggle({
-   Name = "⚔️ Auto Join Battle",
-   CurrentValue = false,
-   Flag = "AutoJoinBattleFlag",
-   Callback = function(Value)
-      getgenv().AutoJoinBattle = Value
-      if Value then
-         task.spawn(function()
-            while getgenv().AutoJoinBattle do
-               pcall(function()
-                  local Event = game:GetService("ReplicatedStorage").Remote.FromLocalForServer.Area.Accept
-                  Event:FireServer()
-               end)
-               task.wait(0.5)
-            end
-         end)
-      end
-   end,
-})
-
 local function IsBossAvailableToWait(bossName)
     local isAvailable = true
     pcall(function()
@@ -945,7 +983,6 @@ local function IsBossAvailableToWait(bossName)
             and workspace.Bosses:FindFirstChild("Waiting")
             and workspace.Bosses.Waiting:FindFirstChild(bossName)
             and workspace.Bosses.Waiting[bossName]:FindFirstChild("Part")
-            and workspace.Bosses.Waiting[bossName].Part:FindFirstChild("BillboardGui")
             and workspace.Bosses.Waiting[bossName].Part.BillboardGui:FindFirstChild("Time")
 
         if waitingLabel and waitingLabel:IsA("TextLabel") then
@@ -1409,6 +1446,11 @@ local UpdateTab = Window:CreateTab("📢 Update", 4483362458)
 UpdateTab:CreateSection("— Latest Changelog —")
 
 UpdateTab:CreateParagraph({
+    Title = "📩 What's new in v1.6.5?",
+    Content = "• In Version 1.6.5\nWe added\n- Tab: Glitches\n- \"Sol RNG Simulator\" at tab Glitches"
+})
+
+UpdateTab:CreateParagraph({
     Title = "📩 What's new in v1.6.4.5?",
     Content = "• In Version 1.6.4.5\nWe added\n- Auto Join Battle\n\nNote: We are developing Auto Kill Players in Battle and Auto Farm Mods so just be patient and wait."
 })
@@ -1416,11 +1458,6 @@ UpdateTab:CreateParagraph({
 UpdateTab:CreateParagraph({
     Title = "📩 What's new in v1.6.4.25?",
     Content = "• In Version 1.6.4.25\nWe fixed\n- Auto Boss bug lost Combat tool"
-})
-
-UpdateTab:CreateParagraph({
-    Title = "📩 What's new in v1.6.4?",
-    Content = "• In Version 1.6.4\nWe Added\n- Auto Box Tab"
 })
 
 ----------------------------------------------------
@@ -1720,7 +1757,7 @@ task.spawn(function()
         local data = {
             ["embeds"] = {{
                 ["title"] = "🚀 Script Executed!",
-                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub (World 1).**",
+                ["description"] = "A player has just executed a script:\n**TSS Script - NoneUserHub (World 1 & World 2).**",
                 ["color"] = 16776960, 
                 ["fields"] = {
                     {
@@ -1762,7 +1799,7 @@ end)
 
 Rayfield:Notify({
    Title = "Update Complete!",
-   Content = "Version v1.6.4.5",
+   Content = "Version v1.6.5",
    Duration = 5,
    Image = 4483362458,
 })

@@ -738,7 +738,7 @@ GlitchesTab:CreateToggle({
                   local Event = game:GetService("ReplicatedStorage").Remote.FromLocalForServer.Area.Accept
                   Event:FireServer()
                end)
-               task.wait(0.5)
+               task.wait(0.25)
             end
          end)
       end

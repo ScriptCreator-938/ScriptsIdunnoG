@@ -781,7 +781,7 @@ GlitchesTab:CreateParagraph({
     Content = "If Auto Reset gets stuck or stops working while rolling, execute this script and type:\n\n• inf^0.07^ reset\n\n❓️ What does this mean?\n\n• inf = Repeats the command infinitely.\n• 0.07 = The delay between each loop.\n• reset = The Infinite Yield command used to reset your character.\n\n🎲 Enjoy your rolling!"
 })
 
-Tab:CreateButton({
+GlitchesTab:CreateButton({
     Name = "Execute Infinite Yield",
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()

@@ -791,7 +791,7 @@ GlitchesTab:CreateButton({
 GlitchesTab:CreateSection("- Secret Script -")
 
 GlitchesTab:CreateButton({
-    Name = "Execute ISpySomeonesItems"
+    Name = "Execute ISpySomeonesItems",
     Callback = function()
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Spy%20Items%20TSS%20Script"))()

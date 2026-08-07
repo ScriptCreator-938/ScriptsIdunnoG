@@ -1,13 +1,156 @@
 ----------------------------------------------------
--- DUPE GLITCH SCRIPT - TSS SCRIPT NONEUSERHUB
--- NO UI LIBRARY (Pure Instance.new)
+-- WHITELIST CHECK
 ----------------------------------------------------
-
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local success, whitelistTable = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Whitelist%20Dupe"))()
+end)
+
+local isWhitelisted = false
+
+if success and whitelistTable then
+    if type(whitelistTable) == "table" then
+        for _, value in pairs(whitelistTable) do
+            if value == LocalPlayer.Name or value == LocalPlayer.UserId then
+                isWhitelisted = true
+                break
+            end
+        end
+    elseif type(whitelistTable) == "boolean" then
+        isWhitelisted = whitelistTable
+    end
+end
+
+----------------------------------------------------
+-- ACCESS DENIED GUI (NẾU KHÔNG CÓ WHITELIST)
+----------------------------------------------------
+if not isWhitelisted then
+    if game:GetService("CoreGui"):FindFirstChild("AccessDeniedGui_NoneUserHub") then
+        game:GetService("CoreGui").AccessDeniedGui_NoneUserHub:Destroy()
+    end
+
+    local DeniedGui = Instance.new("ScreenGui")
+    DeniedGui.Name = "AccessDeniedGui_NoneUserHub"
+    DeniedGui.ResetOnSpawn = false
+
+    pcall(function()
+        DeniedGui.Parent = game:GetService("CoreGui")
+    end)
+
+    local DeniedFrame = Instance.new("Frame")
+    DeniedFrame.Name = "DeniedFrame"
+    DeniedFrame.Size = UDim2.new(0, 320, 0, 160)
+    DeniedFrame.Position = UDim2.new(0.5, -160, 0.4, -80)
+    DeniedFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    DeniedFrame.BorderSizePixel = 0
+    DeniedFrame.Active = true
+    DeniedFrame.Parent = DeniedGui
+
+    local DeniedCorner = Instance.new("UICorner")
+    DeniedCorner.CornerRadius = UDim.new(0, 10)
+    DeniedCorner.Parent = DeniedFrame
+
+    local DeniedStroke = Instance.new("UIStroke")
+    DeniedStroke.Color = Color3.fromRGB(255, 50, 50)
+    DeniedStroke.Thickness = 1.5
+    DeniedStroke.Parent = DeniedFrame
+
+    -- Title
+    local DeniedTitle = Instance.new("TextLabel")
+    DeniedTitle.Size = UDim2.new(1, -20, 0, 40)
+    DeniedTitle.Position = UDim2.new(0, 10, 0, 0)
+    DeniedTitle.BackgroundTransparency = 1
+    DeniedTitle.Text = "Dupe Glitch - NoneUserHub"
+    DeniedTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DeniedTitle.TextSize = 15
+    DeniedTitle.Font = Enum.Font.SourceSansBold
+    DeniedTitle.TextXAlignment = Enum.TextXAlignment.Left
+    DeniedTitle.Parent = DeniedFrame
+
+    local Line = Instance.new("Frame")
+    Line.Size = UDim2.new(1, -20, 0, 1)
+    Line.Position = UDim2.new(0, 10, 0, 40)
+    Line.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    Line.BorderSizePixel = 0
+    Line.Parent = DeniedFrame
+
+    -- Content Header
+    local DeniedHeader = Instance.new("TextLabel")
+    DeniedHeader.Size = UDim2.new(1, -20, 0, 30)
+    DeniedHeader.Position = UDim2.new(0, 10, 0, 45)
+    DeniedHeader.BackgroundTransparency = 1
+    DeniedHeader.Text = "Access Denied!"
+    DeniedHeader.TextColor3 = Color3.fromRGB(255, 60, 60)
+    DeniedHeader.TextSize = 18
+    DeniedHeader.Font = Enum.Font.SourceSansBold
+    DeniedHeader.Parent = DeniedFrame
+
+    -- Content Detail
+    local DeniedText = Instance.new("TextLabel")
+    DeniedText.Size = UDim2.new(1, -20, 0, 40)
+    DeniedText.Position = UDim2.new(0, 10, 0, 75)
+    DeniedText.BackgroundTransparency = 1
+    DeniedText.Text = "You are not in Whitelist Dupe Glitch Script."
+    DeniedText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    DeniedText.TextSize = 13
+    DeniedText.Font = Enum.Font.SourceSans
+    DeniedText.TextWrapped = true
+    DeniedText.Parent = DeniedFrame
+
+    -- Close Button
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(1, -20, 0, 30)
+    CloseBtn.Position = UDim2.new(0, 10, 0, 120)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    CloseBtn.Text = "Close"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.TextSize = 13
+    CloseBtn.Font = Enum.Font.SourceSansBold
+    CloseBtn.Parent = DeniedFrame
+
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 6)
+    CloseCorner.Parent = CloseBtn
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        DeniedGui:Destroy()
+    end)
+
+    -- Drag System cho Access Denied GUI
+    local UserInputService = game:GetService("UserInputService")
+    local dragging, dragInput, dragStart, startPos
+    DeniedFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = DeniedFrame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            end)
+        end
+    end)
+    DeniedFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            DeniedFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    return
+end
+
+----------------------------------------------------
+-- MAIN DUPE GLITCH SCRIPT - TSS SCRIPT NONEUSERHUB
+----------------------------------------------------
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local LocalPlayer = Players.LocalPlayer
 
 -- State Variables
 getgenv().AutoRolling = false

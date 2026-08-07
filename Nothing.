@@ -4,22 +4,38 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local success, whitelistTable = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Whitelist%20Dupe"))()
-end)
+-- Danh sách Whitelist cố định (Hardcoded)
+local BuiltInWhitelist = {
+    10369850818, -- UserID NoneUser
+}
 
 local isWhitelisted = false
 
-if success and whitelistTable then
-    if type(whitelistTable) == "table" then
-        for _, value in pairs(whitelistTable) do
-            if value == LocalPlayer.Name or value == LocalPlayer.UserId then
-                isWhitelisted = true
-                break
+-- 1. Kiểm tra trong danh sách Built-in trước
+for _, val in pairs(BuiltInWhitelist) do
+    if val == LocalPlayer.Name or val == LocalPlayer.UserId then
+        isWhitelisted = true
+        break
+    end
+end
+
+-- 2. Nếu chưa pass, kiểm tra tiếp qua GitHub Raw
+if not isWhitelisted then
+    local success, whitelistTable = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Whitelist%20Dupe"))()
+    end)
+
+    if success and whitelistTable then
+        if type(whitelistTable) == "table" then
+            for _, value in pairs(whitelistTable) do
+                if value == LocalPlayer.Name or value == LocalPlayer.UserId then
+                    isWhitelisted = true
+                    break
+                end
             end
+        elseif type(whitelistTable) == "boolean" then
+            isWhitelisted = whitelistTable
         end
-    elseif type(whitelistTable) == "boolean" then
-        isWhitelisted = whitelistTable
     end
 end
 

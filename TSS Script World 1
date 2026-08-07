@@ -729,57 +729,9 @@ LocalPlayer.CharacterAdded:Connect(ApplyCustomStats)
 ----------------------------------------------------
 local GlitchesTab = Window:CreateTab("🌀 Glitches", 4483362458)
 
-GlitchesTab:CreateSection("— Sol RNG Simulator —")
-
-GlitchesTab:CreateToggle({
-   Name = "🎲 Rolling Battle Reward [RNG]",
-   CurrentValue = false,
-   Flag = "AutoJoinBattleFlag",
-   Callback = function(Value)
-      getgenv().AutoJoinBattle = Value
-      if Value then
-         task.spawn(function()
-            while getgenv().AutoJoinBattle do
-               pcall(function()
-                  local Event = game:GetService("ReplicatedStorage").Remote.FromLocalForServer.Area.Accept
-                  Event:FireServer()
-               end)
-               task.wait(0.05)
-            end
-         end)
-      end
-   end,
-})
-
-GlitchesTab:CreateToggle({
-   Name = "⚡ Auto Reset [RNG]",
-   CurrentValue = false,
-   Flag = "AutoResetRNGFlag",
-   Callback = function(Value)
-      getgenv().AutoResetRNG = Value
-      if Value then
-         task.spawn(function()
-            while getgenv().AutoResetRNG do
-               local char = LocalPlayer.Character
-               local hum = char and char:FindFirstChildOfClass("Humanoid")
-               if hum then
-                  hum.Health = 0
-               end
-               task.wait(getgenv().ResetDelayValue or 1.0)
-            end
-         end)
-      end
-   end,
-})
-
-GlitchesTab:CreateInput({
-   Name = "⏱️ Reset Delay (Seconds)",
-   PlaceholderText = "Default: 1.0",
-   RemoveTextAfterFocusLost = false,
-   Callback = function(Text)
-      local num = tonumber(Text)
-      getgenv().ResetDelayValue = (num and num > 0) and num or 1.0
-   end,
+GlitchesTab:CreateParagraph({
+    Title = "📉 Economy Degrade Due to Dupe Overuse",
+    Content = "We are very sorry about this.\n\nDue to the overuse of the Dupe glitch, we have decided to permanently shut down this glitch in TSS Script - NoneUserHub.\n\nBut don't worry! We will create another Dupe glitch script. Access will be limited to certain people only."
 })
 
 ----------------------------------------------------

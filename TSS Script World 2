@@ -723,7 +723,7 @@ LocalPlayer.CharacterAdded:Connect(ApplyCustomStats)
 ----------------------------------------------------
 local GlitchesTab = Window:CreateTab("🌀 Glitches", 4483362458)
 
-Tab:CreateParagraph({
+GlitchesTab:CreateParagraph({
     Title = "📉 Economy Degrade Due to Dupe Overuse",
     Content = "We are very sorry about this.\n\nDue to the overuse of the Dupe glitch, we have decided to permanently shut down this glitch in TSS Script - NoneUserHub.\n\nBut don't worry! We will create another Dupe glitch script. Access will be limited to certain people only."
 })

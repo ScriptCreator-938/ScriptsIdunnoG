@@ -360,7 +360,7 @@ AutoRollBtn.MouseButton1Click:Connect(function()
                 pcall(function()
                     ReplicatedStorage.Remote.FromLocalForServer.Area.Accept:FireServer()
                 end)
-                task.wait(0.5)
+                task.wait(0.05)
             end
         end)
     else

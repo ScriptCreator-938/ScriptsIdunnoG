@@ -973,7 +973,7 @@ local function ExecuteBossLogic(bossList)
             end
 
             isBossWaitingDelay = true
-            task.wait(2.5)
+            task.wait(3)
             isBossWaitingDelay = false
 
             return

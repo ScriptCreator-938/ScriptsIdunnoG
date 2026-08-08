@@ -736,6 +736,14 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/Scr
     end
 })
 
+GlitchesTab:CreateButton({
+    Name = "Fire Rolling Reward [LIMITED]",
+    Callback = function()
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Dupe%20Glitch%20TSS%20Script"))()
+    end
+})
+
 ----------------------------------------------------
 -- ⚔️ TAB AUTO FARM
 ----------------------------------------------------

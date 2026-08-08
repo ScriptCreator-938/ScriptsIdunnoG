@@ -728,6 +728,14 @@ GlitchesTab:CreateParagraph({
     Content = "We are very sorry about this.\n\nDue to the overuse of the Dupe glitch, we have decided to permanently shut down this glitch in TSS Script - NoneUserHub.\n\nBut don't worry! We will create another Dupe glitch script. Access will be limited to certain people only."
 })
 
+GlitchesTab:CreateButton({
+    Name = "Fire ISpySomeonesItems",
+    Callback = function()
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Spy%20Items%20TSS%20Script"))()
+    end
+})
+
 ----------------------------------------------------
 -- ⚔️ TAB AUTO FARM
 ----------------------------------------------------

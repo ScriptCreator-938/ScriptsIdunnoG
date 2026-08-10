@@ -148,8 +148,31 @@ game:GetService("Players").PlayerAdded:Connect(function(player)
     end
 end)
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+----------------------------------------------------
+-- 🚀 LOAD RAYFIELD (Có Fallback chống lỗi)
+----------------------------------------------------
+local Rayfield = nil
+local success, err = pcall(function()
+    -- Ưu tiên load link Sirius chính
+    Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end)
 
+if not success or not Rayfield then
+    -- Nếu link sirius lỗi, tự động chuyển sang link GitHub dự phòng
+    pcall(function()
+        Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLTD/Rayfield/main/source'))()
+    end)
+end
+
+-- Nếu vẫn không load được Rayfield thì báo lỗi ra Console
+if not Rayfield then
+    warn("[TSS Script Error] 78e2ba3c06b8588f12aa379279d2c2e7 ERROR")
+    return
+end
+
+----------------------------------------------------
+-- 🪟 TẠO WINDOW
+----------------------------------------------------
 local Window = Rayfield:CreateWindow({
    Name = "TSS Script - NoneUserHub (World 2)",
    LoadingTitle = "Loading",
@@ -160,7 +183,7 @@ local Window = Rayfield:CreateWindow({
       FileName = "TSSConfig_W2"
    },
    KeySystem = false,
-   Theme = savedTheme 
+   Theme = savedTheme
 })
 
 getgenv().AutoCollect = false

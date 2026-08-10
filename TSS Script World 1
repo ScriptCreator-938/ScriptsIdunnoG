@@ -146,6 +146,22 @@ end)
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
+-- 2. Đặt HÀM KIỂM TRA ở đây
+local function CheckGame(allowedIds)
+    if not table.find(allowedIds, game.PlaceId) then
+        Rayfield:Notify({
+            Title = "Wrong Game!",
+            Content = "You executing NoneUserHub at different Game place",
+            Duration = 5,
+            Image = 4483362458
+        })
+        return false
+    end
+    return true
+end
+
+if not CheckGame({11455876520}) then return end 
+
 local Window = Rayfield:CreateWindow({
    Name = "TSS Script - NoneUserHub (World 1)",
    LoadingTitle = "Loading",

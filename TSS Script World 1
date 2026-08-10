@@ -60,7 +60,6 @@ end
 
 CheckBan()
 
-
 local function playSound(soundId, volume)
     pcall(function()
         local sound = Instance.new("Sound")

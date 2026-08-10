@@ -34,7 +34,7 @@ local function CheckBan()
             local myId = tostring(LocalPlayer.UserId)
             for _, bannedId in ipairs(bannedUsers) do
                 if tostring(bannedId) == myId then
-                    LocalPlayer:Kick("\n🔨 [NONEUSERHUB SECURITY SYSTEM]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator.")
+                    LocalPlayer:Kick("\n🔨 [NONEUSERHUB BLACKLIST]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator")
                     while true do end 
                 end
             end

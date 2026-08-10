@@ -48,7 +48,7 @@ local function CheckBan()
                     LocalPlayer:Kick([[
 
 🔨 [NONEUSERHUB BLACKLIST]
-You have been permanently banned from TSS Script - NoneUserHub
+You have been banned from TSS Script - NoneUserHub / Time: Depends on Creator
 Reason: Blacklisted by Creator]])
                     task.wait(9e9)
                 end

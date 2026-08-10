@@ -26,25 +26,28 @@ local function CheckBan()
     local success, response = pcall(function()
         return HttpService:GetAsync(BlacklistURL)
     end)
-    
+
     if success and response then
         local successDecode, bannedUsers = pcall(function() return HttpService:JSONDecode(response) end)
-        if successDecode and bannedUsers then
+        if successDecode and type(bannedUsers) == "table" then
             bannedUsersList = bannedUsers
-            local myId = tostring(LocalPlayer.UserId)
+            local myId = LocalPlayer.UserId
+
             for _, bannedId in ipairs(bannedUsers) do
-                if tostring(bannedId) == myId then
+                if tonumber(bannedId) == myId then
                     LocalPlayer:Kick("\n🔨 [NONEUSERHUB BLACKLIST]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator")
-                    while true do end 
+                    task.wait(0.5)
+                    return true
                 end
             end
         end
     else
-        warn("Không thể kiểm tra hệ thống bảo mật, vui lòng thử lại sau!")
+        warn("System error: cant check BlacklistURL")
     end
+    return false
 end
 
-task.spawn(CheckBan)
+CheckBan()
 
 local function playSound(soundId, volume)
     pcall(function()

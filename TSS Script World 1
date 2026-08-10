@@ -25,7 +25,7 @@ local bannedUsersList = {}
 
 local function CheckBan()
     local response = nil
-    
+
     local success, err = pcall(function()
         response = game:HttpGet(BlacklistURL)
     end)
@@ -41,12 +41,11 @@ local function CheckBan()
 
             for _, bannedId in ipairs(bannedUsers) do
                 if tonumber(bannedId) == myId then
-                    local kickMessage = "[NONEUSERHUB BLACKLIST]\n\n" ..
-                                        "🔨 You have been permanently banned!\n" ..
-                                        "📜 Script: TSS Script - NoneUserHub\n" ..
-                                        "💬 Reason: Blacklisted by Creator"
-                    
-                    LocalPlayer:Kick(kickMessage)
+                    LocalPlayer:Kick([[
+
+🔨 [NONEUSERHUB BLACKLIST]
+You have been banned from TSS Script - NoneUserHub / Time: Depends on Creator
+Reason: Blacklisted by Creator]])
                     task.wait(9e9)
                 end
             end

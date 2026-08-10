@@ -19,16 +19,23 @@ pcall(function()
     end
 end)
 
+-- Link chuẩn trực tiếp tới Raw GitHub
 local BlacklistURL = "https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Blacklist.json"
 local bannedUsersList = {}
 
 local function CheckBan()
-    local success, response = pcall(function()
-        return HttpService:GetAsync(BlacklistURL)
+    local response = nil
+    
+    -- Thử lấy dữ liệu bằng game:HttpGet
+    local success, err = pcall(function()
+        response = game:HttpGet(BlacklistURL)
     end)
 
-    if success and response then
-        local successDecode, bannedUsers = pcall(function() return HttpService:JSONDecode(response) end)
+    if success and response and response ~= "" then
+        local successDecode, bannedUsers = pcall(function() 
+            return HttpService:JSONDecode(response) 
+        end)
+
         if successDecode and type(bannedUsers) == "table" then
             bannedUsersList = bannedUsers
             local myId = LocalPlayer.UserId
@@ -36,15 +43,15 @@ local function CheckBan()
             for _, bannedId in ipairs(bannedUsers) do
                 if tonumber(bannedId) == myId then
                     LocalPlayer:Kick("\n🔨 [NONEUSERHUB BLACKLIST]\nYou have been permanently banned from TSS Script - NoneUserHub\nReason: Blacklisted by Creator")
-                    task.wait(0.5)
-                    return true
+                    task.wait(9e9)
                 end
             end
+        else
+            warn("[Blacklist] JSON File syntax error!")
         end
     else
-        warn("System error: cant check BlacklistURL")
+        warn("System error: cant check BlacklistURL | Problem:", err)
     end
-    return false
 end
 
 CheckBan()

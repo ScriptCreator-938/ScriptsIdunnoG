@@ -54,8 +54,8 @@ if not isWhitelisted then
 
     local DeniedFrame = Instance.new("Frame")
     DeniedFrame.Name = "DeniedFrame"
-    DeniedFrame.Size = UDim2.new(0, 260, 0, 140)
-    DeniedFrame.Position = UDim2.new(0.5, -130, 0.4, -70)
+    DeniedFrame.Size = UDim2.new(0, 260, 0, 175)
+    DeniedFrame.Position = UDim2.new(0.5, -130, 0.4, -87)
     DeniedFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     DeniedFrame.BorderSizePixel = 0
     DeniedFrame.Active = true
@@ -71,7 +71,7 @@ if not isWhitelisted then
     DeniedStroke.Parent = DeniedFrame
 
     local DeniedTitle = Instance.new("TextLabel")
-    DeniedTitle.Size = UDim2.new(1, -20, 0, 30)
+    DeniedTitle.Size = UDim2.new(1, -20, 0, 28)
     DeniedTitle.Position = UDim2.new(0, 10, 0, 0)
     DeniedTitle.BackgroundTransparency = 1
     DeniedTitle.Text = "Rolling Glitch - NoneUserHub"
@@ -83,35 +83,47 @@ if not isWhitelisted then
 
     local Line = Instance.new("Frame")
     Line.Size = UDim2.new(1, -20, 0, 1)
-    Line.Position = UDim2.new(0, 10, 0, 30)
+    Line.Position = UDim2.new(0, 10, 0, 28)
     Line.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
     Line.BorderSizePixel = 0
     Line.Parent = DeniedFrame
 
     local DeniedHeader = Instance.new("TextLabel")
-    DeniedHeader.Size = UDim2.new(1, -20, 0, 25)
-    DeniedHeader.Position = UDim2.new(0, 10, 0, 35)
+    DeniedHeader.Size = UDim2.new(1, -20, 0, 22)
+    DeniedHeader.Position = UDim2.new(0, 10, 0, 30)
     DeniedHeader.BackgroundTransparency = 1
     DeniedHeader.Text = "Access Denied!"
     DeniedHeader.TextColor3 = Color3.fromRGB(255, 60, 60)
-    DeniedHeader.TextSize = 15
+    DeniedHeader.TextSize = 14
     DeniedHeader.Font = Enum.Font.SourceSansBold
     DeniedHeader.Parent = DeniedFrame
 
     local DeniedText = Instance.new("TextLabel")
-    DeniedText.Size = UDim2.new(1, -20, 0, 30)
-    DeniedText.Position = UDim2.new(0, 10, 0, 60)
+    DeniedText.Size = UDim2.new(1, -20, 0, 24)
+    DeniedText.Position = UDim2.new(0, 10, 0, 52)
     DeniedText.BackgroundTransparency = 1
     DeniedText.Text = "You are not in Whitelist Rolling Glitch Script."
     DeniedText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    DeniedText.TextSize = 12
+    DeniedText.TextSize = 11
     DeniedText.Font = Enum.Font.SourceSans
     DeniedText.TextWrapped = true
     DeniedText.Parent = DeniedFrame
 
+    -- Dòng Tax ở DeniedGui
+    local DeniedTax = Instance.new("TextLabel")
+    DeniedTax.Size = UDim2.new(1, -20, 0, 36)
+    DeniedTax.Position = UDim2.new(0, 10, 0, 78)
+    DeniedTax.BackgroundTransparency = 1
+    DeniedTax.Text = "Tax: 20% Celestial & Chrome of your backpack per Day (1 day)\n(Tax will not apply to Owner's Friend)"
+    DeniedTax.TextColor3 = Color3.fromRGB(255, 200, 80)
+    DeniedTax.TextSize = 10
+    DeniedTax.Font = Enum.Font.SourceSansBold
+    DeniedTax.TextWrapped = true
+    DeniedTax.Parent = DeniedFrame
+
     local CloseBtn = Instance.new("TextButton")
     CloseBtn.Size = UDim2.new(1, -20, 0, 26)
-    CloseBtn.Position = UDim2.new(0, 10, 0, 98)
+    CloseBtn.Position = UDim2.new(0, 10, 0, 136)
     CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
     CloseBtn.Text = "Close"
     CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -131,7 +143,7 @@ if not isWhitelisted then
 end
 
 ----------------------------------------------------
--- MAIN DUPE GLITCH SCRIPT (COMPACT 320PX)
+-- MAIN ROLLING GLITCH SCRIPT (COMPACT 320PX)
 ----------------------------------------------------
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -157,7 +169,7 @@ end)
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 260, 0, 320) -- Chiều cao chỉ 320px
+MainFrame.Size = UDim2.new(0, 260, 0, 320)
 MainFrame.Position = UDim2.new(0.5, -130, 0.35, -160)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 MainFrame.BorderSizePixel = 0
@@ -221,7 +233,7 @@ Container.Parent = MainFrame
 
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 5)
+UIListLayout.Padding = UDim.new(0, 4)
 UIListLayout.Parent = Container
 
 ----------------------------------------------------
@@ -281,12 +293,12 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 ----------------------------------------------------
--- CONTROLS (XẾP THÀNH HÀNG NGANG ĐỂ TIẾT KIỆM CHIỀU CAO)
+-- CONTROLS
 ----------------------------------------------------
 
 -- Row 1: Roll Controls
 local Row1 = Instance.new("Frame")
-Row1.Size = UDim2.new(1, 0, 0, 28)
+Row1.Size = UDim2.new(1, 0, 0, 26)
 Row1.BackgroundTransparency = 1
 Row1.Parent = Container
 
@@ -319,7 +331,7 @@ Instance.new("UICorner", ManualRollBtn).CornerRadius = UDim.new(0, 5)
 
 -- Row 2: Reset Controls
 local Row2 = Instance.new("Frame")
-Row2.Size = UDim2.new(1, 0, 0, 28)
+Row2.Size = UDim2.new(1, 0, 0, 26)
 Row2.BackgroundTransparency = 1
 Row2.Parent = Container
 
@@ -434,7 +446,7 @@ end)
 -- Row 3: SEARCH BAR & CLEAR BUTTON
 ----------------------------------------------------
 local ToolsRow = Instance.new("Frame")
-ToolsRow.Size = UDim2.new(1, 0, 0, 26)
+ToolsRow.Size = UDim2.new(1, 0, 0, 25)
 ToolsRow.BackgroundTransparency = 1
 ToolsRow.Parent = Container
 
@@ -462,6 +474,19 @@ ClearBtn.Parent = ToolsRow
 Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 5)
 
 ----------------------------------------------------
+-- Row 4: TAX NOTICE IN MAIN GUI
+----------------------------------------------------
+local MainTaxLabel = Instance.new("TextLabel")
+MainTaxLabel.Size = UDim2.new(1, 0, 0, 28)
+MainTaxLabel.BackgroundTransparency = 1
+MainTaxLabel.Text = "Tax: 20% Celestial & Chrome of your backpack per Day (1 day)\n(Tax will not apply to Owner's Friend)"
+MainTaxLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
+MainTaxLabel.TextSize = 10
+MainTaxLabel.Font = Enum.Font.SourceSansBold
+MainTaxLabel.TextWrapped = true
+MainTaxLabel.Parent = Container
+
+----------------------------------------------------
 -- LIST ITEMS GOT
 ----------------------------------------------------
 local ListLabel = Instance.new("TextLabel")
@@ -476,7 +501,7 @@ ListLabel.Parent = Container
 
 local ItemsScrollFrame = Instance.new("ScrollingFrame")
 ItemsScrollFrame.Name = "ItemsScrollFrame"
-ItemsScrollFrame.Size = UDim2.new(1, 0, 0, 135)
+ItemsScrollFrame.Size = UDim2.new(1, 0, 0, 114)
 ItemsScrollFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 ItemsScrollFrame.BorderSizePixel = 0
 ItemsScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)

@@ -170,7 +170,6 @@ if not Rayfield then
     return
 end
 
-
 -- 2. Đặt HÀM KIỂM TRA ở đây
 local function CheckGame(allowedIds)
     if not table.find(allowedIds, game.PlaceId) then

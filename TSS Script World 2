@@ -1565,15 +1565,16 @@ SettingsTab:CreateButton({
 SettingsTab:CreateSection("⚙️ Configuration Management")
 local ConfigStatusLabel = SettingsTab:CreateLabel("Active Config: [" .. activeConfigName .. "]")
 
+-- Tăng giới hạn lấy danh sách Config từ 5 lên 10
 local function GetSavedConfigs()
     local configList = {}
     if listfiles then
         local files = listfiles("")
         for _, file in ipairs(files) do
-            local name = string.match(file, "NoneUserHub_Config_W2_(.-)%.json$")
+            local name = string.match(file, "NoneUserHub_Config_(.-)%.json$")
             if name then
                 table.insert(configList, name)
-                if #configList >= 5 then break end
+                if #configList >= 10 then break end -- Đã nâng lên 10 slots
             end
         end
     end
@@ -1582,7 +1583,7 @@ local function GetSavedConfigs()
 end
 
 local ConfigDropdown = SettingsTab:CreateDropdown({
-    Name = "Select Saved Config (Max 5)",
+    Name = "Select Saved Config (Max 10)", -- Đổi nhãn hiển thị thành Max 10
     Options = GetSavedConfigs(),
     CurrentOption = {GetSavedConfigs()[1] or "None"},
     MultipleOptions = false,
@@ -1613,8 +1614,9 @@ SettingsTab:CreateButton({
             if name == targetConfigName then isExisting = true break end
         end
 
-        if not isExisting and #savedConfigs >= 5 and savedConfigs[1] ~= "None" then
-            return Rayfield:Notify({Title = "Limit Reached", Content = "Maximum 5 configs allowed! Please delete one first.", Duration = 4})
+        -- Kiểm tra giới hạn 10 configs
+        if not isExisting and #savedConfigs >= 10 and savedConfigs[1] ~= "None" then
+            return Rayfield:Notify({Title = "Limit Reached", Content = "Maximum 10 configs allowed! Please delete one first.", Duration = 4})
         end
 
         local configData = {}
@@ -1622,7 +1624,7 @@ SettingsTab:CreateButton({
             configData[flagName] = flagState.CurrentValue
         end
         local success, _ = pcall(function()
-            writefile("NoneUserHub_Config_W2_" .. targetConfigName .. ".json", HttpService:JSONEncode(configData))
+            writefile("NoneUserHub_Config_" .. targetConfigName .. ".json", HttpService:JSONEncode(configData))
         end)
         if success then
             activeConfigName = targetConfigName
@@ -1641,7 +1643,7 @@ SettingsTab:CreateButton({
         if targetConfigName == "" or targetConfigName == "None" then 
             return Rayfield:Notify({Title = "Error", Content = "Please select a config from Dropdown first!", Duration = 3})
         end
-        local fileName = "NoneUserHub_Config_W2_" .. targetConfigName .. ".json"
+        local fileName = "NoneUserHub_Config_" .. targetConfigName .. ".json"
         if not isfile(fileName) then
             return Rayfield:Notify({Title = "Error", Content = "Config file not found!", Duration = 3})
         end
@@ -1666,11 +1668,42 @@ SettingsTab:CreateButton({
     end,
 })
 
+-- NÚT AUTO LOAD MỚI ĐƯỢC THÊM VÀO ĐÂY
+SettingsTab:CreateButton({
+    Name = "🔄📂 Auto Load Selected Config",
+    Callback = function()
+        if targetConfigName == "" or targetConfigName == "None" then 
+            return Rayfield:Notify({Title = "Error", Content = "Please select a config to set as Auto-Load!", Duration = 3})
+        end
+
+        local fileName = "NoneUserHub_Config_" .. targetConfigName .. ".json"
+        if not isfile(fileName) then
+            return Rayfield:Notify({Title = "Error", Content = "Config file does not exist!", Duration = 3})
+        end
+
+        -- Lưu tên config được chọn vào file cấu hình Auto Load riêng
+        local autoLoadData = {AutoLoadConfig = targetConfigName}
+        local success, _ = pcall(function()
+            writefile("NoneUserHub_AutoLoad.json", HttpService:JSONEncode(autoLoadData))
+        end)
+
+        if success then
+            Rayfield:Notify({
+                Title = "Auto Load Set!", 
+                Content = "Config [" .. targetConfigName .. "] will auto-load on next execution!", 
+                Duration = 4
+            })
+        else
+            Rayfield:Notify({Title = "Error", Content = "Failed to save Auto Load preference!", Duration = 3})
+        end
+    end,
+})
+
 SettingsTab:CreateButton({
     Name = "❌ Delete Config From Device",
     Callback = function()
         if targetConfigName == "" or targetConfigName == "None" then return end
-        local fileName = "NoneUserHub_Config_W2_" .. targetConfigName .. ".json"
+        local fileName = "NoneUserHub_Config_" .. targetConfigName .. ".json"
         if isfile(fileName) then
             delfile(fileName)
             targetConfigName = ""
@@ -1766,3 +1799,41 @@ Rayfield:Notify({
    Duration = 5,
    Image = 4483362458,
 })
+
+-- Logic Tự Động Load Config Khi Kích Hoạt Script
+task.spawn(function()
+    task.wait(1) -- Chờ Rayfield khởi tạo xong các Flag
+    local AUTOLOAD_FILE = "NoneUserHub_AutoLoad.json"
+    if isfile(AUTOLOAD_FILE) then
+        local success, content = pcall(function() return readfile(AUTOLOAD_FILE) end)
+        if success then
+            local successDecode, autoData = pcall(function() return HttpService:JSONDecode(content) end)
+            if successDecode and autoData and autoData.AutoLoadConfig then
+                local autoConfigName = autoData.AutoLoadConfig
+                local configFile = "NoneUserHub_Config_" .. autoConfigName .. ".json"
+                
+                if isfile(configFile) then
+                    local readSuccess, configContent = pcall(function() return readfile(configFile) end)
+                    if readSuccess then
+                        local parseSuccess, configData = pcall(function() return HttpService:JSONDecode(configContent) end)
+                        if parseSuccess and type(configData) == "table" then
+                            for flagName, savedValue in pairs(configData) do
+                                if Rayfield.Flags[flagName] and Rayfield.Flags[flagName].Set then
+                                    Rayfield.Flags[flagName]:Set(savedValue)
+                                end
+                            end
+                            activeConfigName = autoConfigName
+                            ConfigStatusLabel:Set("Active Config: [" .. activeConfigName .. "]")
+                            Rayfield:Notify({
+                                Title = "Auto Loaded!", 
+                                Content = "Applied configuration: [" .. autoConfigName .. "]", 
+                                Duration = 4
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+

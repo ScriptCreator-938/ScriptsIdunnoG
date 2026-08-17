@@ -221,7 +221,6 @@ local function getDynamicFOVCenter()
     return Vector2.new(screenSize.X / 2, screenSize.Y / 2)
 end
 
--- Hàm lấy ID thực tế của Cửa/Gate dựa trên các thuộc tính cấu trúc ẩn của game
 local function getActualDoorId(obj)
     if not obj then return "Unknown" end
     local idValue = obj:FindFirstChild("ID") or obj:FindFirstChild("DoorID") or obj:FindFirstChild("GateID")
@@ -324,19 +323,19 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- LOOP SPAM 173DETECT REMOTE DETECTOR (ĐÃ SỬA CHÍNH XÁC 5 LẦN / GIÂY)
+-- LOOP SPAM 173DETECT REMOTE DETECTOR
 -- ==========================================
 task.spawn(function()
     while true do
         if getgenv().Spam173Detect and Remote_173Detect and Workspace:FindFirstChild("SCP-173") then
             Remote_173Detect:FireServer(Workspace["SCP-173"])
         end
-        task.wait(0.2) -- Đạt tần suất chính xác 5 lần mỗi giây (1s / 5 = 0.2s)
+        task.wait(0.2)
     end
 end)
 
 -- ==========================================
--- CORE METATABLE HOOK (INTEGRATED DECOMPILED LOGIC)
+-- CORE METATABLE HOOK
 -- ==========================================
 if not getgenv()._origFire then
     local mt = getrawmetatable(game)
@@ -347,14 +346,12 @@ if not getgenv()._origFire then
         local args = {...}
 
         if method == "FireServer" and not checkcaller() then
-            -- Chặn Gói Tin SCP-096 Từ Module Decompiled
             if getgenv().Block096LoS and Remote_096LoSReport and self == Remote_096LoSReport then
                 return nil
             end
             if getgenv().Block096Trigger and Remote_096Trigger and self == Remote_096Trigger then
                 return nil
             end
-            -- TÍNH NĂNG MỚI: Chặn Gói Tin Phát Hiện Từ SCP-173
             if getgenv().Block173Detect and Remote_173Detect and self == Remote_173Detect then
                 return nil
             end
@@ -398,7 +395,6 @@ if not getgenv()._origFire then
     setreadonly(mt, true)
 end
 
--- Decompiled Script RenderStepped Loop Execution Logic (Auto Run)
 local v_u_12 = 0
 RunService.RenderStepped:Connect(function()
     if getgenv().Block096LoS and getgenv().Block096Trigger then return end
@@ -530,7 +526,6 @@ end)
 
 -- Visuals: Players & Doors/Gates Dynamic Render Loop
 RunService.RenderStepped:Connect(function()
-    -- 1. HỆ THỐNG ESP CHAMS CHO NGƯỜI CHƠI
     for _, obj in ipairs(Workspace:GetChildren()) do
         if obj:IsA("Model") and obj ~= LocalPlayer.Character and obj:FindFirstChild("Head") then
             local isSCP = string.match(obj.Name, "^SCP%-%d+") ~= nil
@@ -594,13 +589,11 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- 2. HỆ THỐNG ESP CHAMS & ID CHO DOORS & GATES (QUÉT ID GẮN TRÊN CỬA)
     local function processFolderESP(folder, color, labelType)
         if not folder then return end
         local children = folder:GetChildren()
         for idx, obj in ipairs(children) do
             if getgenv().DoorGateEspEnabled then
-                -- Highlight Cham
                 local hl = obj:FindFirstChild("DoorGateCham")
                 if not hl then
                     hl = Instance.new("Highlight")
@@ -614,7 +607,6 @@ RunService.RenderStepped:Connect(function()
                 hl.OutlineColor = Color3.fromRGB(255, 255, 255)
                 hl.Enabled = true
 
-                -- Tìm phần BasePart trung tâm để gắn BillboardGui
                 local targetPart = obj:FindFirstChild("Hitbox") or obj:FindFirstChildOfClass("BasePart") or obj:FindFirstChild("Main")
                 if targetPart then
                     local bb = targetPart:FindFirstChild("DoorGateTag")
@@ -642,7 +634,6 @@ RunService.RenderStepped:Connect(function()
                     end
                 end
             else
-                -- Tắt ESP
                 local hl = obj:FindFirstChild("DoorGateCham")
                 if hl then hl.Enabled = false end
                 for _, desc in ipairs(obj:GetDescendants()) do
@@ -881,19 +872,6 @@ TitleText.TextSize = 12
 TitleText.BackgroundTransparency = 1
 TitleText.Parent = TitleBar
 
-local OpenBtn = Instance.new("TextButton")
-OpenBtn.Name = "OpenBtn"
-OpenBtn.Size = UDim2.new(0, 55, 0, 55)
-OpenBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-OpenBtn.Text = "OPEN"
-OpenBtn.TextColor3 = Color3.fromRGB(0, 255, 150)
-OpenBtn.Font = Enum.Font.GothamBold
-OpenBtn.TextSize = 12
-OpenBtn.Visible = false
-OpenBtn.Parent = ScreenGui
-Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(1, 0)
-
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Size = UDim2.new(1, 0, 1, -45)
 ContentFrame.Position = UDim2.new(0, 0, 0, 45)
@@ -918,7 +896,6 @@ local function createPage(name, isScrollable)
     return p
 end
 
--- TRANG SẮP XẾP THỨ TỰ (CREDIT HUB LUÔN ĐỨNG CUỐI)
 local Page1 = createPage("WeaponMods", false)
 local Page2 = createPage("Aimbot", true) 
 local Page3 = createPage("Hitbox", false)
@@ -978,22 +955,16 @@ UserInputService.InputChanged:Connect(function(input)
     if input == DragInput and Dragging then update(input) end
 end)
 
-local savedSize = MainFrame.Size
+-- MINIMIZE LÀM BIẾN MẤT HOÀN TOÀN (KHÔNG CÒN NÚT HÌNH TRÒN)
 MinBtn.MouseButton1Click:Connect(function()
-    local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 310, 0, 45)})
-    minimizeTween:Play()
-    minimizeTween.Completed:Connect(function()
-        MainFrame.Visible = false
-        OpenBtn.Position = UDim2.new(0, math.clamp(MainFrame.Position.X.Offset + 120, 10, Camera.ViewportSize.X - 65), 0, math.clamp(MainFrame.Position.Y.Offset, 10, Camera.ViewportSize.Y - 65))
-        OpenBtn.Visible = true
-    end)
+    MainFrame.Visible = false
 end)
 
-OpenBtn.MouseButton1Click:Connect(function()
-    OpenBtn.Visible = false
-    MainFrame.Size = UDim2.new(0, 310, 0, 45)
-    MainFrame.Visible = true
-    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = savedSize}):Play()
+-- LỆNH CHAT "." ĐỂ BẬT / TẮT MENU
+LocalPlayer.Chatted:Connect(function(msg)
+    if string.lower(msg) == "." or msg == "." then
+        MainFrame.Visible = not MainFrame.Visible
+    end
 end)
 
 local function createToggle(parent, text, posY, globalVarName)
@@ -1766,12 +1737,12 @@ createHeaderLabel(Page8, "SCP-096 Protections")
 createToggle(Page8, "Block SCP-096 Line of Sight", 0, "Block096LoS")
 createToggle(Page8, "Block SCP-096 Trigger Remote", 0, "Block096Trigger")
 
-local RemoteDivider = Instance.new("Frame", Page8)
-RemoteDivider.Size = UDim2.new(0.9, 0, 0, 2)
-RemoteDivider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-RemoteDivider.BorderSizePixel = 0
+local SpaceDivider3 = Instance.new("Frame", Page8)
+SpaceDivider3.Size = UDim2.new(0.9, 0, 0, 2)
+SpaceDivider3.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+SpaceDivider3.BorderSizePixel = 0
 
-createHeaderLabel(Page8, "SCP-173 Remotes Control")
+createHeaderLabel(Page8, "SCP-173 Controls")
 createToggle(Page8, "Block SCP-173 Detect Remote", 0, "Block173Detect")
 createToggle(Page8, "Spam SCP-173 Detect Remote", 0, "Spam173Detect")
 
@@ -1786,28 +1757,27 @@ local L9 = Instance.new("UIListLayout", Page9)
 L9.Padding = UDim.new(0, 8)
 local P9 = Instance.new("UIPadding", Page9)
 P9.PaddingTop = UDim.new(0, 10)
-Instance.new("UIPadding", Page9).PaddingLeft = UDim.new(0, 12)
 
-createHeaderLabel(Page9, "Script Info & Developer")
+createHeaderLabel(Page9, "Developer Information")
 
-local DevLabel = Instance.new("TextLabel")
-DevLabel.Size = UDim2.new(0.9, 0, 0, 40)
+local DevLabel = Instance.new("TextLabel", Page9)
+DevLabel.Size = UDim2.new(0.9, 0, 0, 45)
 DevLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-DevLabel.Text = " Developer: mqxq11\n User ID: " .. tostring(DEVELOPER_USER_ID)
+DevLabel.Text = " Developed By: mqxq11\n UserID: " .. tostring(DEVELOPER_USER_ID)
 DevLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 DevLabel.Font = Enum.Font.GothamBold
 DevLabel.TextSize = 11
 DevLabel.TextXAlignment = Enum.TextXAlignment.Left
-DevLabel.Parent = Page9
 Instance.new("UICorner", DevLabel).CornerRadius = UDim.new(0, 6)
+Instance.new("UIPadding", DevLabel).PaddingLeft = UDim.new(0, 10)
 
-local VerLabel = Instance.new("TextLabel")
-VerLabel.Size = UDim2.new(0.9, 0, 0, 30)
-VerLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-VerLabel.Text = " Version: Premium Edition v7.0"
-VerLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-VerLabel.Font = Enum.Font.GothamSemibold
-VerLabel.TextSize = 11
-VerLabel.TextXAlignment = Enum.TextXAlignment.Left
-VerLabel.Parent = Page9
-Instance.new("UICorner", VerLabel).CornerRadius = UDim.new(0, 6)
+local InfoLabel = Instance.new("TextLabel", Page9)
+InfoLabel.Size = UDim2.new(0.9, 0, 0, 60)
+InfoLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+InfoLabel.Text = " Open/Close Chat Command: .\n Minimum Version: v7.0\n Platform: PC & Mobile Dual Support"
+InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.TextSize = 10
+InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+Instance.new("UICorner", InfoLabel).CornerRadius = UDim.new(0, 6)
+Instance.new("UIPadding", InfoLabel).PaddingLeft = UDim.new(0, 10)

@@ -962,7 +962,7 @@ end)
 
 -- LỆNH CHAT "." ĐỂ BẬT / TẮT MENU
 LocalPlayer.Chatted:Connect(function(msg)
-    if string.lower(msg) == "." or msg == "." then
+    if string.lower(msg) == "/e . " or msg == "/e ." then
         MainFrame.Visible = not MainFrame.Visible
     end
 end)

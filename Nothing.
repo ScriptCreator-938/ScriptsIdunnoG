@@ -114,7 +114,7 @@ if not isWhitelisted then
     DeniedTax.Size = UDim2.new(1, -20, 0, 36)
     DeniedTax.Position = UDim2.new(0, 10, 0, 78)
     DeniedTax.BackgroundTransparency = 1
-    DeniedTax.Text = "Tax: 20% Celestial & Chrome of your backpack per Day (1 day)\n(Tax will not apply to Owner's Friend)"
+    DeniedTax.Text = "Tax: 12.5 Celestials & 6 Chromes for below 1 week (7 days)\n15 Celestials & 8 Chromes for above 1 week (7 days)\n(Tax will not apply to Owner's Friend)"
     DeniedTax.TextColor3 = Color3.fromRGB(255, 200, 80)
     DeniedTax.TextSize = 10
     DeniedTax.Font = Enum.Font.SourceSansBold
@@ -479,7 +479,7 @@ Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 5)
 local MainTaxLabel = Instance.new("TextLabel")
 MainTaxLabel.Size = UDim2.new(1, 0, 0, 28)
 MainTaxLabel.BackgroundTransparency = 1
-MainTaxLabel.Text = "Tax: 20% Celestial & Chrome of your backpack per Day (1 day)\n(Tax will not apply to Owner's Friend)"
+MainTaxLabel.Text = "Tax: 12.5 Celestials & 6 Chromes for below 1 week (7 days)\n15 Celestials & 8 Chromes for above 1 week (7 days)\n(Tax will not apply to Owner's Friend)"
 MainTaxLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 MainTaxLabel.TextSize = 10
 MainTaxLabel.Font = Enum.Font.SourceSansBold

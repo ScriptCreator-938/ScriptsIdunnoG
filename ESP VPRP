@@ -20,7 +20,7 @@ local Settings = {
 }
 
 local dangerousItems = {
-    "Rope", "Shiv", "Baton", "G17", "Employee Keycard", 
+    "Rope", "Screwdriver", "Shiv", "Baton", "G17", "Employee Keycard", 
     "Corrections Keycard", "Directors Keycard", "Master Keycard", 
     "G22", "G40", "M1014", "G36C", "HK416", "MP7",
     "G18", "P90", "M4A1", "M82A1", "LEO MCX Spear", "The Harrow", 

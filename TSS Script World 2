@@ -441,7 +441,7 @@ task.spawn(function()
                     
                     local msgText = record.Message or ""
                     local target = record.Target or "ALL"
-                    local title = record.Title or "📢 MESSAGE FROM OWNER"
+                    local title = record.Title or "📢 Message from Owner"
 
                     local isTargeted = (target == "ALL") 
                         or (target:lower() == LocalPlayer.Name:lower()) 

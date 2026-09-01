@@ -380,7 +380,7 @@ task.spawn(function()
                     
                     local msgText = record.Message or ""
                     local target = record.Target or "ALL"
-                    local title = record.Title or "📢 MESSAGE FROM OWNER"
+                    local title = record.Title or "📢 Message from Owner"
 
                     -- Kiểm tra xem tin nhắn có phải dành cho mình không
                     local isTargeted = (target == "ALL") 
@@ -402,7 +402,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------
--- 👑 2. TAB OWNER PANEL (CHỈ DÀNH CHO OWNER)
+-- 👑 TAB OWNER PANEL (SỬA LỖI HTTP REQUEST TRÊN DELTA)
 ----------------------------------------------------
 if LocalPlayer.UserId == OWNER_USER_ID then
     local OwnerTab = Window:CreateTab("👑 Owner Panel", 4483362458)
@@ -430,14 +430,10 @@ if LocalPlayer.UserId == OWNER_USER_ID then
         end,
     })
 
-    -- Hàm đẩy dữ liệu lên Firebase
+    -- Hàm đẩy dữ liệu lên Firebase dùng universalRequest
     local function BroadcastFirebaseMessage(target, title)
         if targetOwnerMessage == "" then
             return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
-        end
-
-        if not httpRequest then
-            return Rayfield:Notify({Title = "Error", Content = "Your Executor does not support HTTP Requests!", Duration = 4})
         end
 
         local payloadData = {
@@ -448,8 +444,9 @@ if LocalPlayer.UserId == OWNER_USER_ID then
             OwnerSecret = OWNER_SECRET_KEY
         }
 
+        -- Gọi hàm universalRequest đã được khai báo ở đầu Script
         local success, response = pcall(function()
-            return httpRequest({
+            return universalRequest({
                 Url = FIREBASE_URL,
                 Method = "PUT",
                 Headers = {
@@ -469,7 +466,7 @@ if LocalPlayer.UserId == OWNER_USER_ID then
         else
             Rayfield:Notify({
                 Title = "Error",
-                Content = "Failed to send message! Check console.",
+                Content = "Failed to send message! Check console (F9).",
                 Duration = 4
             })
         end
@@ -482,7 +479,7 @@ if LocalPlayer.UserId == OWNER_USER_ID then
             if targetSinglePlayer == "" then
                 return Rayfield:Notify({Title = "Owner System", Content = "Please enter target username!", Duration = 3})
             end
-            BroadcastFirebaseMessage(targetSinglePlayer, "📩 PRIVATE MESSAGE FROM OWNER")
+            BroadcastFirebaseMessage(targetSinglePlayer, "📩 Message from Owner")
         end,
     })
 
@@ -490,7 +487,7 @@ if LocalPlayer.UserId == OWNER_USER_ID then
     OwnerTab:CreateButton({
         Name = "📢 Send Message to All Players",
         Callback = function()
-            BroadcastFirebaseMessage("ALL", "📢 GLOBAL ANNOUNCEMENT FROM OWNER")
+            BroadcastFirebaseMessage("ALL", "📢 Global message from Owner")
         end,
     })
 end

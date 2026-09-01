@@ -1,7 +1,69 @@
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+
+-- Khai báo hàm Universal Request tương thích Executor (Delta, Solara, Wave,...)
+local function universalRequest(url, method, data, headers)
+    -- 1. Tìm hàm Request do Executor cung cấp
+    local httpRequestFunc = request 
+        or http_request 
+        or (http and http.request) 
+        or (syn and syn.request) 
+        or (fluxus and fluxus.request)
+
+    if not httpRequestFunc then
+        warn("❌ Executor của bạn không hỗ trợ hàm HTTP Request!")
+        return nil
+    end
+
+    -- 2. Chuẩn hóa phương thức (GET, POST, PUT, DELETE,...)
+    method = string.upper(method or "GET") 
+    
+    -- 3. Mã hóa dữ liệu dạng Bảng (Table) thành chuỗi JSON nếu có
+    local requestBody = nil
+    if data then
+        requestBody = HttpService:JSONEncode(data)
+    end
+
+    -- 4. Cấu hình gói dữ liệu
+    local requestConfig = {
+        Url = url,
+        Method = method,
+        Headers = headers or { ["Content-Type"] = "application/json" },
+        Body = requestBody
+    }
+
+    -- 5. Thực hiện gửi request bằng hàm của Executor
+    local success, response = pcall(function()
+        return httpRequestFunc(requestConfig)
+    end)
+
+    -- 6. Xử lý kết quả trả về từ Executor
+    if success and response then
+        -- Mã 200 (OK) hoặc 204 (No Content - Firebase đôi khi trả về 204)
+        if response.StatusCode == 200 or response.StatusCode == 204 or response.Success then
+            print("✅ Yêu cầu thành công! Mã trạng thái:", response.StatusCode)
+            
+            -- Giải mã Body nếu có dữ liệu trả về
+            if response.Body and response.Body ~= "" and response.Body ~= "null" then
+                local decodeSuccess, decodedData = pcall(function()
+                    return HttpService:JSONDecode(response.Body)
+                end)
+                if decodeSuccess then
+                    return decodedData
+                end
+            end
+            return true
+        else
+            warn("❌ Server phản hồi lỗi:", response.StatusCode, response.StatusMessage or response.Body)
+            return nil
+        end
+    else
+        warn("❌ Không thể gửi Request. Lỗi kết nối:", response)
+        return nil
+    end
+end
 
 -- Hàm Request tổng hợp (Hỗ trợ PUT/POST/GET cho mọi Executor)
 local function universalRequest(options)

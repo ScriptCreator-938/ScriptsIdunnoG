@@ -308,15 +308,26 @@ local httpRequest = (syn and syn.request) or (http and http.request) or http_req
 local lastMessageId = 0
 
 task.spawn(function()
+    -- 1. ĐỌC TRƯỚC TIN NHẮN HIỆN CÓ ĐỂ TRÁNH HIỆN LẠI TIN CŨ KHI BẬT SCRIPT
+    pcall(function()
+        local initResponse = game:HttpGet(JSONBIN_URL .. "/latest")
+        if initResponse then
+            local decoded = HttpService:JSONDecode(initResponse)
+            if decoded and decoded.record and decoded.record.MessageId then
+                lastMessageId = decoded.record.MessageId -- Ghi nhớ luôn ID tin nhắn gần nhất hiện tại
+            end
+        end
+    end)
+
+    -- 2. BẮT ĐẦU VÒNG LẬP THEO DÕI TIN NHẮN MỚI
     while task.wait(4) do
         pcall(function()
-            -- Lấy dữ liệu mới nhất từ Bin (không cần Master Key vì Bin để public hoặc đọc qua URL direct)
             local response = game:HttpGet(JSONBIN_URL .. "/latest")
             if response then
                 local decoded = HttpService:JSONDecode(response)
                 local record = decoded.record
 
-                -- Kiểm tra nếu có tin nhắn mới dựa vào MessageId
+                -- Chỉ hiển thị NẾU có MessageId MỚI HƠN MessageId lúc vừa Execute
                 if record and record.MessageId and record.MessageId > lastMessageId then
                     lastMessageId = record.MessageId
                     
@@ -324,7 +335,6 @@ task.spawn(function()
                     local target = record.Target or "ALL"
                     local title = record.Title or "📢 MESSAGE FROM OWNER"
 
-                    -- Kiểm tra điều kiện người nhận (Gửi cho tất cả HOẶC trùng tên Username/DisplayName)
                     local isTargeted = (target == "ALL") 
                         or (target:lower() == LocalPlayer.Name:lower()) 
                         or (target:lower() == LocalPlayer.DisplayName:lower())

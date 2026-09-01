@@ -6,6 +6,9 @@ return {
     10090112516,
     2633136710,
  
-    - DIS ARM
+    - DIS ARM FAKE
     11505119672,
+
+    - DIS ARM REAL
+    5077124804,
 }

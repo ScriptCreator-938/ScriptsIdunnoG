@@ -281,44 +281,38 @@ local function SafeTP(pos)
       hrp.CFrame = CFrame.new(pos)
    end
 end
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Config JSONbin.io
-local BIN_ID = "6a962d4cf5f4af5e295a572d"
-local MASTER_KEY = "$2a$10$qjaYAnpLzjCki2ZG.raoweud7V2R9hXwqrSO5igj9yrjD4M2moY6e"
-local JSONBIN_URL = "https://api.jsonbin.io/v3/b/" .. BIN_ID
-
--- Xác định hàm Request hỗ trợ bởi Executor
-local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
 
 ----------------------------------------------------
--- 🔊 SYSTEM LẮNG NGHE TIN NHẮN (CHẠY CHO TẤT CẢ USER)
+-- 🌐 CẤU HÌNH CHUNG FIREBASE
+----------------------------------------------------
+local FIREBASE_URL = "https://noneuser-83ifuua91f8skw9-default-rtdb.asia-southeast1.firebasedatabase.app/GlobalMessage.json"
+local OWNER_SECRET_KEY = "8d7ddzqlc"
+
+----------------------------------------------------
+-- 🔊 1. SYSTEM LẮNG NGHE TIN NHẮN (CHẠY CHO TẤT CẢ USER)
 ----------------------------------------------------
 local lastMessageId = 0
 
 task.spawn(function()
-    -- 1. ĐỌC TRƯỚC TIN NHẮN HIỆN CÓ ĐỂ TRÁNH HIỆN LẠI TIN CŨ KHI BẬT SCRIPT
+    -- Đọc trước tin nhắn hiện tại lúc vừa Execute để tránh hiện lại tin cũ
     pcall(function()
-        local initResponse = game:HttpGet(JSONBIN_URL .. "/latest")
-        if initResponse then
+        local initResponse = game:HttpGet(FIREBASE_URL)
+        if initResponse and initResponse ~= "null" then
             local decoded = HttpService:JSONDecode(initResponse)
-            if decoded and decoded.record and decoded.record.MessageId then
-                lastMessageId = decoded.record.MessageId -- Ghi nhớ luôn ID tin nhắn gần nhất hiện tại
+            if decoded and decoded.MessageId then
+                lastMessageId = decoded.MessageId
             end
         end
     end)
 
-    -- 2. BẮT ĐẦU VÒNG LẬP THEO DÕI TIN NHẮN MỚI
-    while task.wait(4) do
+    -- Vòng lặp theo dõi thông báo mới (Mỗi 5 giây kiểm tra 1 lần)
+    while task.wait(5) do
         pcall(function()
-            local response = game:HttpGet(JSONBIN_URL .. "/latest")
-            if response then
-                local decoded = HttpService:JSONDecode(response)
-                local record = decoded.record
-
-                -- Chỉ hiển thị NẾU có MessageId MỚI HƠN MessageId lúc vừa Execute
+            local response = game:HttpGet(FIREBASE_URL)
+            if response and response ~= "null" then
+                local record = HttpService:JSONDecode(response)
+                
+                -- Kiểm tra nếu có MessageId mới hơn
                 if record and record.MessageId and record.MessageId > lastMessageId then
                     lastMessageId = record.MessageId
                     
@@ -326,6 +320,7 @@ task.spawn(function()
                     local target = record.Target or "ALL"
                     local title = record.Title or "📢 MESSAGE FROM OWNER"
 
+                    -- Kiểm tra xem tin nhắn có phải dành cho mình không
                     local isTargeted = (target == "ALL") 
                         or (target:lower() == LocalPlayer.Name:lower()) 
                         or (target:lower() == LocalPlayer.DisplayName:lower())
@@ -345,7 +340,7 @@ task.spawn(function()
 end)
 
 ----------------------------------------------------
--- 👑 TAB OWNER (CHỈ OWNER MỚI CÓ QUYỀN GỬI)
+-- 👑 2. TAB OWNER PANEL (CHỈ DÀNH CHO OWNER)
 ----------------------------------------------------
 if LocalPlayer.UserId == OWNER_USER_ID then
     local OwnerTab = Window:CreateTab("👑 Owner Panel", 4483362458)
@@ -353,7 +348,7 @@ if LocalPlayer.UserId == OWNER_USER_ID then
     local targetOwnerMessage = ""
     local targetSinglePlayer = ""
 
-    OwnerTab:CreateSection("— Owner Announcement (JSONbin.io) —")
+    OwnerTab:CreateSection("— Owner Live Announcement System —")
 
     OwnerTab:CreateInput({
         Name = "💬 Input Message",
@@ -373,8 +368,8 @@ if LocalPlayer.UserId == OWNER_USER_ID then
         end,
     })
 
-    -- Hàm cập nhật dữ liệu lên JSONbin.io
-    local function BroadcastMessage(target, title)
+    -- Hàm đẩy dữ liệu lên Firebase
+    local function BroadcastFirebaseMessage(target, title)
         if targetOwnerMessage == "" then
             return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
         end
@@ -383,57 +378,57 @@ if LocalPlayer.UserId == OWNER_USER_ID then
             return Rayfield:Notify({Title = "Error", Content = "Your Executor does not support HTTP Requests!", Duration = 4})
         end
 
-        -- Tọa Payload dữ liệu JSON
         local payloadData = {
             Message = targetOwnerMessage,
             Target = target,
             Title = title,
-            MessageId = os.time() -- Dùng Timestamp làm ID phân biệt tin nhắn mới
+            MessageId = os.time(),
+            OwnerSecret = OWNER_SECRET_KEY
         }
 
-        -- Gửi Request dạng PUT lên JSONbin
-        local response = httpRequest({
-            Url = JSONBIN_URL,
-            Method = "PUT",
-            Headers = {
-                ["Content-Type"] = "application/json",
-                ["X-Master-Key"] = MASTER_KEY
-            },
-            Body = HttpService:JSONEncode(payloadData)
-        })
+        local success, response = pcall(function()
+            return httpRequest({
+                Url = FIREBASE_URL,
+                Method = "PUT",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payloadData)
+            })
+        end)
 
-        if response and (response.StatusCode == 200 or response.Success) then
+        if success and response then
             Rayfield:Notify({
                 Title = "👑 OWNER SYSTEM",
-                Content = "Message published successfully via JSONbin!",
+                Content = "Announcement sent successfully to Firebase!",
                 Duration = 4,
                 Image = 4483362458
             })
         else
             Rayfield:Notify({
                 Title = "Error",
-                Content = "Failed to update JSONbin! Check console for errors.",
+                Content = "Failed to send message! Check console.",
                 Duration = 4
             })
         end
     end
 
-    -- Nút gửi cho 1 người chơi
+    -- Nút Gửi cho 1 người chơi cụ thể
     OwnerTab:CreateButton({
         Name = "📩 Send Message to Single Player",
         Callback = function()
             if targetSinglePlayer == "" then
                 return Rayfield:Notify({Title = "Owner System", Content = "Please enter target username!", Duration = 3})
             end
-            BroadcastMessage(targetSinglePlayer, "📩 Message from Owner")
+            BroadcastFirebaseMessage(targetSinglePlayer, "📩 PRIVATE MESSAGE FROM OWNER")
         end,
     })
 
-    -- Nút gửi cho toàn bộ người chơi đang chạy Script
+    -- Nút Gửi cho Toàn bộ Server
     OwnerTab:CreateButton({
         Name = "📢 Send Message to All Players",
         Callback = function()
-            BroadcastMessage("ALL", "📢 Global message from Owner")
+            BroadcastFirebaseMessage("ALL", "📢 GLOBAL ANNOUNCEMENT FROM OWNER")
         end,
     })
 end

@@ -281,6 +281,152 @@ local function SafeTP(pos)
       hrp.CFrame = CFrame.new(pos)
    end
 end
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Config JSONbin.io
+local BIN_ID = "6a962d4cf5f4af5e295a572d"
+local MASTER_KEY = "$2a$10$qjaYAnpLzjCki2ZG.raoweud7V2R9hXwqrSO5igj9yrjD4M2moY6e"
+local JSONBIN_URL = "https://api.jsonbin.io/v3/b/" .. BIN_ID
+
+-- Xác định hàm Request hỗ trợ bởi Executor
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
+
+----------------------------------------------------
+-- 🔊 SYSTEM LẮNG NGHE TIN NHẮN (CHẠY CHO TẤT CẢ USER)
+----------------------------------------------------
+local lastMessageId = 0
+
+task.spawn(function()
+    while task.wait(4) do
+        pcall(function()
+            -- Lấy dữ liệu mới nhất từ Bin (không cần Master Key vì Bin để public hoặc đọc qua URL direct)
+            local response = game:HttpGet(JSONBIN_URL .. "/latest")
+            if response then
+                local decoded = HttpService:JSONDecode(response)
+                local record = decoded.record
+
+                -- Kiểm tra nếu có tin nhắn mới dựa vào MessageId
+                if record and record.MessageId and record.MessageId > lastMessageId then
+                    lastMessageId = record.MessageId
+                    
+                    local msgText = record.Message or ""
+                    local target = record.Target or "ALL"
+                    local title = record.Title or "📢 MESSAGE FROM OWNER"
+
+                    -- Kiểm tra điều kiện người nhận (Gửi cho tất cả HOẶC trùng tên Username/DisplayName)
+                    local isTargeted = (target == "ALL") 
+                        or (target:lower() == LocalPlayer.Name:lower()) 
+                        or (target:lower() == LocalPlayer.DisplayName:lower())
+
+                    if isTargeted and msgText ~= "" then
+                        Rayfield:Notify({
+                            Title = title,
+                            Content = msgText,
+                            Duration = 8,
+                            Image = 4483362458
+                        })
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+----------------------------------------------------
+-- 👑 TAB OWNER (CHỈ OWNER MỚI CÓ QUYỀN GỬI)
+----------------------------------------------------
+if LocalPlayer.UserId == OWNER_USER_ID then
+    local OwnerTab = Window:CreateTab("👑 Owner Panel", 4483362458)
+
+    local targetOwnerMessage = ""
+    local targetSinglePlayer = ""
+
+    OwnerTab:CreateSection("— Owner Announcement (JSONbin.io) —")
+
+    OwnerTab:CreateInput({
+        Name = "💬 Input Message",
+        PlaceholderText = "Enter announcement / message...",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            targetOwnerMessage = Text
+        end,
+    })
+
+    OwnerTab:CreateInput({
+        Name = "👤 Target Player (Leave empty for ALL)",
+        PlaceholderText = "Enter Username or DisplayName...",
+        RemoveTextAfterFocusLost = false,
+        Callback = function(Text)
+            targetSinglePlayer = Text
+        end,
+    })
+
+    -- Hàm cập nhật dữ liệu lên JSONbin.io
+    local function BroadcastMessage(target, title)
+        if targetOwnerMessage == "" then
+            return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
+        end
+
+        if not httpRequest then
+            return Rayfield:Notify({Title = "Error", Content = "Your Executor does not support HTTP Requests!", Duration = 4})
+        end
+
+        -- Tọa Payload dữ liệu JSON
+        local payloadData = {
+            Message = targetOwnerMessage,
+            Target = target,
+            Title = title,
+            MessageId = os.time() -- Dùng Timestamp làm ID phân biệt tin nhắn mới
+        }
+
+        -- Gửi Request dạng PUT lên JSONbin
+        local response = httpRequest({
+            Url = JSONBIN_URL,
+            Method = "PUT",
+            Headers = {
+                ["Content-Type"] = "application/json",
+                ["X-Master-Key"] = MASTER_KEY
+            },
+            Body = HttpService:JSONEncode(payloadData)
+        })
+
+        if response and (response.StatusCode == 200 or response.Success) then
+            Rayfield:Notify({
+                Title = "👑 OWNER SYSTEM",
+                Content = "Message published successfully via JSONbin!",
+                Duration = 4,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Failed to update JSONbin! Check console for errors.",
+                Duration = 4
+            })
+        end
+    end
+
+    -- Nút gửi cho 1 người chơi
+    OwnerTab:CreateButton({
+        Name = "📩 Send Message to Single Player",
+        Callback = function()
+            if targetSinglePlayer == "" then
+                return Rayfield:Notify({Title = "Owner System", Content = "Please enter target username!", Duration = 3})
+            end
+            BroadcastMessage(targetSinglePlayer, "📩 Message from Owner")
+        end,
+    })
+
+    -- Nút gửi cho toàn bộ người chơi đang chạy Script
+    OwnerTab:CreateButton({
+        Name = "📢 Send Message to All Players",
+        Callback = function()
+            BroadcastMessage("ALL", "📢 Global message from Owner")
+        end,
+    })
+end
 
 ----------------------------------------------------
 -- 🌐 TAB MAIN

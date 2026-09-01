@@ -460,9 +460,8 @@ task.spawn(function()
         end)
     end
 end)
-
 ----------------------------------------------------
--- 👑 TAB OWNER (CHỈ OWNER MỚI CÓ QUYỀN GỬI)
+-- 👑 TAB OWNER PANEL (SỬA LỖI HTTP REQUEST TRÊN DELTA)
 ----------------------------------------------------
 if LocalPlayer.UserId == OWNER_USER_ID then
     local OwnerTab = Window:CreateTab("👑 Owner Panel", 4483362458)
@@ -470,7 +469,7 @@ if LocalPlayer.UserId == OWNER_USER_ID then
     local targetOwnerMessage = ""
     local targetSinglePlayer = ""
 
-    OwnerTab:CreateSection("— Owner Announcement (JSONbin.io) —")
+    OwnerTab:CreateSection("— Owner Live Announcement System —")
 
     OwnerTab:CreateInput({
         Name = "💬 Input Message",
@@ -490,67 +489,64 @@ if LocalPlayer.UserId == OWNER_USER_ID then
         end,
     })
 
-    -- Hàm cập nhật dữ liệu lên JSONbin.io
-    local function BroadcastMessage(target, title)
+    -- Hàm đẩy dữ liệu lên Firebase dùng universalRequest
+    local function BroadcastFirebaseMessage(target, title)
         if targetOwnerMessage == "" then
             return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
         end
 
-        if not httpRequest then
-            return Rayfield:Notify({Title = "Error", Content = "Your Executor does not support HTTP Requests!", Duration = 4})
-        end
-
-        -- Tọa Payload dữ liệu JSON
         local payloadData = {
             Message = targetOwnerMessage,
             Target = target,
             Title = title,
-            MessageId = os.time() -- Dùng Timestamp làm ID phân biệt tin nhắn mới
+            MessageId = os.time(),
+            OwnerSecret = OWNER_SECRET_KEY
         }
 
-        -- Gửi Request dạng PUT lên JSONbin
-        local response = httpRequest({
-            Url = JSONBIN_URL,
-            Method = "PUT",
-            Headers = {
-                ["Content-Type"] = "application/json",
-                ["X-Master-Key"] = MASTER_KEY
-            },
-            Body = HttpService:JSONEncode(payloadData)
-        })
+        -- Gọi hàm universalRequest đã được khai báo ở đầu Script
+        local success, response = pcall(function()
+            return universalRequest({
+                Url = FIREBASE_URL,
+                Method = "PUT",
+                Headers = {
+                    ["Content-Type"] = "application/json"
+                },
+                Body = HttpService:JSONEncode(payloadData)
+            })
+        end)
 
-        if response and (response.StatusCode == 200 or response.Success) then
+        if success and response then
             Rayfield:Notify({
                 Title = "👑 OWNER SYSTEM",
-                Content = "Message published successfully via JSONbin!",
+                Content = "Announcement sent successfully to Firebase!",
                 Duration = 4,
                 Image = 4483362458
             })
         else
             Rayfield:Notify({
                 Title = "Error",
-                Content = "Failed to update JSONbin! Check console for errors.",
+                Content = "Failed to send message! Check console (F9).",
                 Duration = 4
             })
         end
     end
 
-    -- Nút gửi cho 1 người chơi
+    -- Nút Gửi cho 1 người chơi cụ thể
     OwnerTab:CreateButton({
         Name = "📩 Send Message to Single Player",
         Callback = function()
             if targetSinglePlayer == "" then
                 return Rayfield:Notify({Title = "Owner System", Content = "Please enter target username!", Duration = 3})
             end
-            BroadcastMessage(targetSinglePlayer, "📩 Message from Owner")
+            BroadcastFirebaseMessage(targetSinglePlayer, "📩 Message from Owner")
         end,
     })
 
-    -- Nút gửi cho toàn bộ người chơi đang chạy Script
+    -- Nút Gửi cho Toàn bộ Server
     OwnerTab:CreateButton({
         Name = "📢 Send Message to All Players",
         Callback = function()
-            BroadcastMessage("ALL", "📢 Global message from Owner")
+            BroadcastFirebaseMessage("ALL", "📢 Global message from Owner")
         end,
     })
 end

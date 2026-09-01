@@ -3,6 +3,52 @@ local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
+-- Hàm Request tổng hợp (Hỗ trợ PUT/POST/GET cho mọi Executor)
+local function universalRequest(options)
+    local req = request 
+        or http_request 
+        or (http and http.request) 
+        or (syn and syn.request) 
+        or (fluxus and fluxus.request) 
+        or (krnl and krnl.request)
+        or (delta and delta.request)
+        or (codex and codex.request)
+
+    if req then
+        return req(options)
+    end
+    return nil
+end
+
+-- Hàm HttpGet an toàn (Ưu tiên game:HttpGet, dự phòng qua Request API)
+local function universalHttpGet(url)
+    if game and game.HttpGet then
+        local success, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if success and result then return result end
+    end
+    
+    if http and http.get then
+        local success, result = pcall(function()
+            return http.get(url)
+        end)
+        if success and result then return result end
+    end
+
+    -- Fallback dùng request chung nếu HttpGet bị lỗi
+    local response = universalRequest({
+        Url = url,
+        Method = "GET"
+    })
+    
+    if response and response.Body then
+        return response.Body
+    end
+
+    return nil
+end
+
 local THEME_FILE = "NoneUserHub_Theme.json"
 local savedTheme = "Default"
 local currentTheme = "Default"

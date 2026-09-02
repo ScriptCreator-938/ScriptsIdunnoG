@@ -3,9 +3,12 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
--- Khai báo hàm Universal Request tương thích Executor (Delta, Solara, Wave,...)
+local OWNER_SECRET_KEY = "8d7ddzqlc" 
+
+-- URL
+local FIREBASE_URL = "https://noneuser-83ifuua91f8skw9-default-rtdb.asia-southeast1.firebasedatabase.app/GlobalMessage.json"
+
 local function universalRequest(url, method, data, headers)
-    -- 1. Tìm hàm Request do Executor cung cấp
     local httpRequestFunc = request 
         or http_request 
         or (http and http.request) 
@@ -13,20 +16,26 @@ local function universalRequest(url, method, data, headers)
         or (fluxus and fluxus.request)
 
     if not httpRequestFunc then
-        warn("❌ Executor của bạn không hỗ trợ hàm HTTP Request!")
+        warn("❌ Executor không hỗ trợ HTTP Request!")
         return nil
     end
 
-    -- 2. Chuẩn hóa phương thức (GET, POST, PUT, DELETE,...)
+    -- 🔧 TỰ ĐỘNG CHUẨN HÓA URL CHO FIREBASE
+    -- Bỏ khoảng trắng thừa ở 2 đầu URL
+    url = string.match(url, "^%s*(.-)%s*$")
+    
+    -- Nếu URL trỏ đến Firebase mà thiếu đuôi .json thì tự thêm vào
+    if string.find(url, "firebaseio.com") and not string.find(url, "%.json$") then
+        url = url .. ".json"
+    end
+
     method = string.upper(method or "GET") 
     
-    -- 3. Mã hóa dữ liệu dạng Bảng (Table) thành chuỗi JSON nếu có
     local requestBody = nil
     if data then
         requestBody = HttpService:JSONEncode(data)
     end
 
-    -- 4. Cấu hình gói dữ liệu
     local requestConfig = {
         Url = url,
         Method = method,
@@ -34,33 +43,25 @@ local function universalRequest(url, method, data, headers)
         Body = requestBody
     }
 
-    -- 5. Thực hiện gửi request bằng hàm của Executor
     local success, response = pcall(function()
         return httpRequestFunc(requestConfig)
     end)
 
-    -- 6. Xử lý kết quả trả về từ Executor
     if success and response then
-        -- Mã 200 (OK) hoặc 204 (No Content - Firebase đôi khi trả về 204)
         if response.StatusCode == 200 or response.StatusCode == 204 or response.Success then
-            print("✅ Yêu cầu thành công! Mã trạng thái:", response.StatusCode)
-            
-            -- Giải mã Body nếu có dữ liệu trả về
             if response.Body and response.Body ~= "" and response.Body ~= "null" then
                 local decodeSuccess, decodedData = pcall(function()
                     return HttpService:JSONDecode(response.Body)
                 end)
-                if decodeSuccess then
-                    return decodedData
-                end
+                if decodeSuccess then return decodedData end
             end
-            return true
+                return true
         else
-            warn("❌ Server phản hồi lỗi:", response.StatusCode, response.StatusMessage or response.Body)
+            warn("❌ Firebase báo lỗi:", response.StatusCode, response.Body)
             return nil
         end
     else
-        warn("❌ Không thể gửi Request. Lỗi kết nối:", response)
+        warn("❌ Không thể gửi Request:", response)
         return nil
     end
 end
@@ -343,12 +344,6 @@ local function SafeTP(pos)
       hrp.CFrame = CFrame.new(pos)
    end
 end
-
-----------------------------------------------------
--- 🌐 CẤU HÌNH CHUNG FIREBASE
-----------------------------------------------------
-local FIREBASE_URL = "https://noneuser-83ifuua91f8skw9-default-rtdb.asia-southeast1.firebasedatabase.app/GlobalMessage.json"
-local OWNER_SECRET_KEY = "8d7ddzqlc"
 
 ----------------------------------------------------
 -- 🔊 1. SYSTEM LẮNG NGHE TIN NHẮN (CHẠY CHO TẤT CẢ USER)

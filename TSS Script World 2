@@ -3,6 +3,11 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 
+local OWNER_SECRET_KEY = "8d7ddzqlc" 
+
+-- URL
+local FIREBASE_URL = "https://noneuser-83ifuua91f8skw9-default-rtdb.asia-southeast1.firebasedatabase.app/GlobalMessage.json"
+
 -- Khai báo hàm Universal Request tương thích Executor (Delta, Solara, Wave,...)
 local function universalRequest(url, method, data, headers)
     -- 1. Tìm hàm Request do Executor cung cấp
@@ -398,55 +403,43 @@ local function SafeTP(pos)
    end
 end
 
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Config JSONbin.io
-local BIN_ID = "6a962d4cf5f4af5e295a572d"
-local MASTER_KEY = "$2a$10$qjaYAnpLzjCki2ZG.raoweud7V2R9hXwqrSO5igj9yrjD4M2moY6e"
-local JSONBIN_URL = "https://api.jsonbin.io/v3/b/" .. BIN_ID
-
 -- Xác định hàm Request hỗ trợ bởi Executor
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
 
 ----------------------------------------------------
--- 🔊 SYSTEM LẮNG NGHE TIN NHẮN (CHẠY CHO TẤT CẢ USER)
+-- 📩 CLIENT SYSTEM READER (HỆ THỐNG TỰ ĐỘNG ĐỌC THÔNG BÁO)
 ----------------------------------------------------
 local lastMessageId = 0
 
 task.spawn(function()
-    -- 1. ĐỌC TRƯỚC TIN NHẮN HIỆN CÓ ĐỂ TRÁNH HIỆN LẠI TIN CŨ KHI BẬT SCRIPT
+    -- 1. Khởi tạo: Đọc tin nhắn hiện tại để lấy MessageId làm mốc (tránh thông báo lại tin cũ khi mới vô game)
     pcall(function()
-        local initResponse = game:HttpGet(JSONBIN_URL .. "/latest")
-        if initResponse then
-            local decoded = HttpService:JSONDecode(initResponse)
-            if decoded and decoded.record and decoded.record.MessageId then
-                lastMessageId = decoded.record.MessageId -- Ghi nhớ luôn ID tin nhắn gần nhất hiện tại
-            end
+        local initData = universalRequest(FIREBASE_URL, "GET")
+        if initData and type(initData) == "table" and initData.MessageId then
+            lastMessageId = initData.MessageId
         end
     end)
 
-    -- 2. BẮT ĐẦU VÒNG LẬP THEO DÕI TIN NHẮN MỚI
-    while task.wait(4) do
+    -- 2. Vòng lặp lắng nghe thông báo mới mỗi 5 giây
+    while task.wait(5) do
         pcall(function()
-            local response = game:HttpGet(JSONBIN_URL .. "/latest")
-            if response then
-                local decoded = HttpService:JSONDecode(response)
-                local record = decoded.record
-
-                -- Chỉ hiển thị NẾU có MessageId MỚI HƠN MessageId lúc vừa Execute
-                if record and record.MessageId and record.MessageId > lastMessageId then
-                    lastMessageId = record.MessageId
+            local record = universalRequest(FIREBASE_URL, "GET")
+            
+            -- Kiểm tra xem có dữ liệu và có phải tin nhắn MỚI không
+            if record and type(record) == "table" and record.MessageId then
+                if record.MessageId > lastMessageId then
+                    lastMessageId = record.MessageId -- Cập nhật mốc tin nhắn mới nhất
                     
                     local msgText = record.Message or ""
                     local target = record.Target or "ALL"
                     local title = record.Title or "📢 Message from Owner"
 
+                    -- Kiểm tra xem người chơi hiện tại có thuộc đối tượng nhận thông báo không
                     local isTargeted = (target == "ALL") 
                         or (target:lower() == LocalPlayer.Name:lower()) 
                         or (target:lower() == LocalPlayer.DisplayName:lower())
 
+                    -- Hiển thị thông báo qua Rayfield Notify nếu đúng đối tượng
                     if isTargeted and msgText ~= "" then
                         Rayfield:Notify({
                             Title = title,
@@ -460,6 +453,7 @@ task.spawn(function()
         end)
     end
 end)
+
 ----------------------------------------------------
 -- 👑 TAB OWNER PANEL (SỬA LỖI HTTP REQUEST TRÊN DELTA)
 ----------------------------------------------------

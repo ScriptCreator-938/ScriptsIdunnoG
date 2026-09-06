@@ -8,61 +8,41 @@ local OWNER_SECRET_KEY = "8d7ddzqlc"
 -- URL
 local FIREBASE_URL = "https://noneuser-83ifuua91f8skw9-default-rtdb.asia-southeast1.firebasedatabase.app/GlobalMessage.json"
 
-local function universalRequest(url, method, data, headers)
-    local httpRequestFunc = request 
-        or http_request 
-        or (http and http.request) 
-        or (syn and syn.request) 
-        or (fluxus and fluxus.request)
-
-    if not httpRequestFunc then
-        warn("❌ Executor không hỗ trợ HTTP Request!")
-        return nil
+local function BroadcastFirebaseMessage(target, title)
+    if targetOwnerMessage == "" then
+        return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
     end
 
-    -- 🔧 TỰ ĐỘNG CHUẨN HÓA URL CHO FIREBASE
-    -- Bỏ khoảng trắng thừa ở 2 đầu URL
-    url = string.match(url, "^%s*(.-)%s*$")
-    
-    -- Nếu URL trỏ đến Firebase mà thiếu đuôi .json thì tự thêm vào
-    if string.find(url, "firebaseio.com") and not string.find(url, "%.json$") then
-        url = url .. ".json"
-    end
-
-    method = string.upper(method or "GET") 
-    
-    local requestBody = nil
-    if data then
-        requestBody = HttpService:JSONEncode(data)
-    end
-
-    local requestConfig = {
-        Url = url,
-        Method = method,
-        Headers = headers or { ["Content-Type"] = "application/json" },
-        Body = requestBody
+    local payloadData = {
+        Message = targetOwnerMessage,
+        Target = target,
+        Title = title,
+        MessageId = os.time(),
+        OwnerSecret = OWNER_SECRET_KEY
     }
 
-    local success, response = pcall(function()
-        return httpRequestFunc(requestConfig)
-    end)
+    print("--- 🚀 ĐANG GỬI REQUEST LÊN FIREBASE ---")
+    print("URL:", FIREBASE_URL)
+    
+    -- Gọi universalRequest và in thẳng kết quả ra Console
+    local response = universalRequest(FIREBASE_URL, "PUT", payloadData)
 
-    if success and response then
-        if response.StatusCode == 200 or response.StatusCode == 204 or response.Success then
-            if response.Body and response.Body ~= "" and response.Body ~= "null" then
-                local decodeSuccess, decodedData = pcall(function()
-                    return HttpService:JSONDecode(response.Body)
-                end)
-                if decodeSuccess then return decodedData end
-            end
-                return true
-        else
-            warn("❌ Firebase báo lỗi:", response.StatusCode, response.Body)
-            return nil
-        end
+    print("--- 📩 KẾT QUẢ PHẢN HỒI ---", response)
+
+    -- Kiểm tra nếu gửi thành công (Response không bị nil)
+    if response then
+        Rayfield:Notify({
+            Title = "👑 OWNER SYSTEM",
+            Content = "Announcement sent successfully!",
+            Duration = 4,
+            Image = 4483362458
+        })
     else
-        warn("❌ Không thể gửi Request:", response)
-        return nil
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Failed to send! Bật F9 xem dòng chữ đỏ/vàng.",
+            Duration = 4
+        })
     end
 end
 
@@ -425,47 +405,44 @@ if LocalPlayer.UserId == OWNER_USER_ID then
         end,
     })
 
-    -- Hàm đẩy dữ liệu lên Firebase dùng universalRequest
-    local function BroadcastFirebaseMessage(target, title)
-        if targetOwnerMessage == "" then
-            return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
-        end
-
-        local payloadData = {
-            Message = targetOwnerMessage,
-            Target = target,
-            Title = title,
-            MessageId = os.time(),
-            OwnerSecret = OWNER_SECRET_KEY
-        }
-
-        -- Gọi hàm universalRequest đã được khai báo ở đầu Script
-        local success, response = pcall(function()
-            return universalRequest({
-                Url = FIREBASE_URL,
-                Method = "PUT",
-                Headers = {
-                    ["Content-Type"] = "application/json"
-                },
-                Body = HttpService:JSONEncode(payloadData)
-            })
-        end)
-
-        if success and response then
-            Rayfield:Notify({
-                Title = "👑 OWNER SYSTEM",
-                Content = "Announcement sent successfully to Firebase!",
-                Duration = 4,
-                Image = 4483362458
-            })
-        else
-            Rayfield:Notify({
-                Title = "Error",
-                Content = "Failed to send message! Check console (F9).",
-                Duration = 4
-            })
-        end
+    -- Hàm đẩy dữ liệu lên Firebase 
+local function BroadcastFirebaseMessage(target, title)
+    if targetOwnerMessage == "" then
+        return Rayfield:Notify({Title = "Owner System", Content = "Please enter a message first!", Duration = 3})
     end
+
+    local payloadData = {
+        Message = targetOwnerMessage,
+        Target = target,
+        Title = title,
+        MessageId = os.time(),
+        OwnerSecret = OWNER_SECRET_KEY
+    }
+
+    print("--- 🚀 ĐANG GỬI REQUEST LÊN FIREBASE ---")
+    print("URL:", FIREBASE_URL)
+    
+    -- Gọi universalRequest và in thẳng kết quả ra Console
+    local response = universalRequest(FIREBASE_URL, "PUT", payloadData)
+
+    print("--- 📩 KẾT QUẢ PHẢN HỒI ---", response)
+
+    -- Kiểm tra nếu gửi thành công (Response không bị nil)
+    if response then
+        Rayfield:Notify({
+            Title = "👑 OWNER SYSTEM",
+            Content = "Announcement sent successfully!",
+            Duration = 4,
+            Image = 4483362458
+        })
+    else
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Failed to send! Bật F9 xem dòng chữ đỏ/vàng.",
+            Duration = 4
+        })
+    end
+end
 
     -- Nút Gửi cho 1 người chơi cụ thể
     OwnerTab:CreateButton({

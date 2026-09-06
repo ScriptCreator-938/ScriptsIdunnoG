@@ -442,7 +442,6 @@ local function BroadcastFirebaseMessage(target, title)
             Duration = 4
         })
     end
-end
 
     -- Nút Gửi cho 1 người chơi cụ thể
     OwnerTab:CreateButton({

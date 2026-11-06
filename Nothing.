@@ -1,5 +1,147 @@
+----------------------------------------------------
+-- WHITELIST CHECK
+----------------------------------------------------
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+
+local BuiltInWhitelist = {
+    10369850818, -- UserID NoneUser
+}
+
+local isWhitelisted = false
+
+for _, val in pairs(BuiltInWhitelist) do
+    if val == LocalPlayer.Name or val == LocalPlayer.UserId then
+        isWhitelisted = true
+        break
+    end
+end
+
+if not isWhitelisted then
+    local success, whitelistTable = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/ScriptCreator-938/ScriptsIdunnoG/main/Whitelist%20Dupe"))()
+    end)
+
+    if success and whitelistTable then
+        if type(whitelistTable) == "table" then
+            for _, value in pairs(whitelistTable) do
+                if value == LocalPlayer.Name or value == LocalPlayer.UserId then
+                    isWhitelisted = true
+                    break
+                end
+            end
+        elseif type(whitelistTable) == "boolean" then
+            isWhitelisted = whitelistTable
+        end
+    end
+end
+
+----------------------------------------------------
+-- ACCESS DENIED GUI
+----------------------------------------------------
+if not isWhitelisted then
+    if game:GetService("CoreGui"):FindFirstChild("AccessDeniedGui_NoneUserHub") then
+        game:GetService("CoreGui").AccessDeniedGui_NoneUserHub:Destroy()
+    end
+
+    local DeniedGui = Instance.new("ScreenGui")
+    DeniedGui.Name = "AccessDeniedGui_NoneUserHub"
+    DeniedGui.ResetOnSpawn = false
+
+    pcall(function()
+        DeniedGui.Parent = game:GetService("CoreGui")
+    end)
+
+    local DeniedFrame = Instance.new("Frame")
+    DeniedFrame.Name = "DeniedFrame"
+    DeniedFrame.Size = UDim2.new(0, 260, 0, 175)
+    DeniedFrame.Position = UDim2.new(0.5, -130, 0.4, -87)
+    DeniedFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    DeniedFrame.BorderSizePixel = 0
+    DeniedFrame.Active = true
+    DeniedFrame.Parent = DeniedGui
+
+    local DeniedCorner = Instance.new("UICorner")
+    DeniedCorner.CornerRadius = UDim.new(0, 8)
+    DeniedCorner.Parent = DeniedFrame
+
+    local DeniedStroke = Instance.new("UIStroke")
+    DeniedStroke.Color = Color3.fromRGB(255, 50, 50)
+    DeniedStroke.Thickness = 1.5
+    DeniedStroke.Parent = DeniedFrame
+
+    local DeniedTitle = Instance.new("TextLabel")
+    DeniedTitle.Size = UDim2.new(1, -20, 0, 28)
+    DeniedTitle.Position = UDim2.new(0, 10, 0, 0)
+    DeniedTitle.BackgroundTransparency = 1
+    DeniedTitle.Text = "Rolling Glitch - NoneUserHub"
+    DeniedTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DeniedTitle.TextSize = 13
+    DeniedTitle.Font = Enum.Font.SourceSansBold
+    DeniedTitle.TextXAlignment = Enum.TextXAlignment.Left
+    DeniedTitle.Parent = DeniedFrame
+
+    local Line = Instance.new("Frame")
+    Line.Size = UDim2.new(1, -20, 0, 1)
+    Line.Position = UDim2.new(0, 10, 0, 28)
+    Line.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    Line.BorderSizePixel = 0
+    Line.Parent = DeniedFrame
+
+    local DeniedHeader = Instance.new("TextLabel")
+    DeniedHeader.Size = UDim2.new(1, -20, 0, 22)
+    DeniedHeader.Position = UDim2.new(0, 10, 0, 30)
+    DeniedHeader.BackgroundTransparency = 1
+    DeniedHeader.Text = "Access Denied!"
+    DeniedHeader.TextColor3 = Color3.fromRGB(255, 60, 60)
+    DeniedHeader.TextSize = 14
+    DeniedHeader.Font = Enum.Font.SourceSansBold
+    DeniedHeader.Parent = DeniedFrame
+
+    local DeniedText = Instance.new("TextLabel")
+    DeniedText.Size = UDim2.new(1, -20, 0, 24)
+    DeniedText.Position = UDim2.new(0, 10, 0, 52)
+    DeniedText.BackgroundTransparency = 1
+    DeniedText.Text = "You are not in Whitelist Rolling Glitch Script."
+    DeniedText.TextColor3 = Color3.fromRGB(200, 200, 200)
+    DeniedText.TextSize = 11
+    DeniedText.Font = Enum.Font.SourceSans
+    DeniedText.TextWrapped = true
+    DeniedText.Parent = DeniedFrame
+
+    -- Dòng Tax ở DeniedGui
+    local DeniedTax = Instance.new("TextLabel")
+    DeniedTax.Size = UDim2.new(1, -20, 0, 36)
+    DeniedTax.Position = UDim2.new(0, 10, 0, 78)
+    DeniedTax.BackgroundTransparency = 1
+    DeniedTax.Text = "Tax: 20% Celestial & Chrome of your backpack per Day (1 day)\n(Tax will not apply to Owner's Friend)"
+    DeniedTax.TextColor3 = Color3.fromRGB(255, 200, 80)
+    DeniedTax.TextSize = 10
+    DeniedTax.Font = Enum.Font.SourceSansBold
+    DeniedTax.TextWrapped = true
+    DeniedTax.Parent = DeniedFrame
+
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(1, -20, 0, 26)
+    CloseBtn.Position = UDim2.new(0, 10, 0, 136)
+    CloseBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    CloseBtn.Text = "Close"
+    CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseBtn.TextSize = 12
+    CloseBtn.Font = Enum.Font.SourceSansBold
+    CloseBtn.Parent = DeniedFrame
+
+    local CloseCorner = Instance.new("UICorner")
+    CloseCorner.CornerRadius = UDim.new(0, 6)
+    CloseCorner.Parent = CloseBtn
+
+    CloseBtn.MouseButton1Click:Connect(function()
+        DeniedGui:Destroy()
+    end)
+
+    return
+end
+
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -334,7 +476,7 @@ Instance.new("UICorner", ClearBtn).CornerRadius = UDim.new(0, 5)
 local MainTaxLabel = Instance.new("TextLabel")
 MainTaxLabel.Size = UDim2.new(1, 0, 0, 28)
 MainTaxLabel.BackgroundTransparency = 1
-MainTaxLabel.Text = "FREE FOR 3 DAYS"
+MainTaxLabel.Text = "Tax: 7 Celestial & 5 Chromes below 1 Week\n12 Celestial& 9 Chromes above 1 Week\n(1 week = Above 1 week tax\n(Tax will not apply to Owner's Friend"
 MainTaxLabel.TextColor3 = Color3.fromRGB(255, 200, 80)
 MainTaxLabel.TextSize = 10
 MainTaxLabel.Font = Enum.Font.SourceSansBold
